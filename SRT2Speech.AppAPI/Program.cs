@@ -1,4 +1,5 @@
 using SRT2Speech.AppAPI.Services.DowloadService;
+using SRT2Speech.Cache;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCarter();
@@ -8,6 +9,7 @@ builder.Services.AddHttpClient();
 
 //inject service
 builder.Services.AddTransient<IDowloadService, DowloadService>();
+builder.Services.AddSingleton<IMemCacheService, MemCacheService>();
 
 var app = builder.Build();
 
