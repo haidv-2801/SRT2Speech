@@ -8,7 +8,7 @@ namespace SRT2Speech.AppAPI.Modules
     {
         public VbeeModule() : base("/api/vbee")
         {
-            WithTags("webhook");
+            WithTags("Webhook");
             IncludeInOpenApi();
         }
 
@@ -19,7 +19,7 @@ namespace SRT2Speech.AppAPI.Modules
               .WithOpenApi();
         }
 
-        private  IResult ListenDowload([FromBody] object body)
+        private IResult ListenDowload([FromBody] object body)
         {
             return TypedResults.Ok(true);
         }
