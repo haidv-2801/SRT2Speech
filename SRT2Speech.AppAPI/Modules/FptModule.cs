@@ -18,13 +18,15 @@ namespace SRT2Speech.AppAPI.Modules
 
         public override void AddRoutes(IEndpointRouteBuilder app)
         {
-            app.MapPost("/listen", async([FromBody] object body) =>
+            app.MapPost("/listen", async ([FromBody] object body) =>
             {
                 return await ListenDowload(body);
             })
               .WithName("FptListenResponse")
               .WithOpenApi();
         }
+      
+
         private async Task<IResult> ListenDowload([FromBody] object body)
         {
             var obj = JObject.Parse(body.ToString()!);
