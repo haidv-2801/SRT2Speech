@@ -1,0 +1,49 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34408.163
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.AppWindow", "SRT2Speech.AppWindow\SRT2Speech.AppWindow.csproj", "{15682C08-70A4-436E-9889-32824D185AA5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.AppAPI", "SRT2Speech.AppAPI\SRT2Speech.AppAPI.csproj", "{372E0EDF-2C20-4B00-9726-03FAF69FC68C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.Socket", "SRT2Speech.Socket\SRT2Speech.Socket.csproj", "{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.Database", "SRT2Speech.Database\SRT2Speech.Database.csproj", "{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.Core", "SRT2Speech.Core\SRT2Speech.Core.csproj", "{2F917EE9-4565-45B4-BD34-94A1BACC958B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{15682C08-70A4-436E-9889-32824D185AA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15682C08-70A4-436E-9889-32824D185AA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15682C08-70A4-436E-9889-32824D185AA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15682C08-70A4-436E-9889-32824D185AA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{372E0EDF-2C20-4B00-9726-03FAF69FC68C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{372E0EDF-2C20-4B00-9726-03FAF69FC68C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{372E0EDF-2C20-4B00-9726-03FAF69FC68C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{372E0EDF-2C20-4B00-9726-03FAF69FC68C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6CEC601A-1332-49F5-9EB1-6368E0698847}
+	EndGlobalSection
+EndGlobal

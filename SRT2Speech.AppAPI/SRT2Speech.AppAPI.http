@@ -1,0 +1,6 @@
+@SRT2Speech.AppAPI_HostAddress = http://localhost:5144
+
+GET {{SRT2Speech.AppAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
