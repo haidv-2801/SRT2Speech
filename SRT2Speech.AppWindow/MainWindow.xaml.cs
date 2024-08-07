@@ -1,24 +1,17 @@
 ﻿using AutoApp.Utility;
 using Microsoft.Win32;
-using System.IO;
-using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using System.Net.Http.Headers;
+using SRT2Speech.AppWindow.Models;
+using SRT2Speech.AppWindow.Views;
+using SRT2Speech.Core.Extensions;
+using SRT2Speech.Core.Utilitys;
 using SRT2Speech.Socket.Client;
 using SRT2Speech.Socket.Methods;
-using SRT2Speech.AppWindow.Models;
-using SRT2Speech.Core.Utilitys;
-using SRT2Speech.AppWindow.Views;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Windows;
+using System.Windows.Controls;
 
 namespace SRT2Speech.AppWindow
 {
@@ -29,7 +22,7 @@ namespace SRT2Speech.AppWindow
     {
         string fileInputContent;
         FptConfig _fptConfig;
-        VbeeConfig _vbeeConfig;
+        SignalRConfig _signalR;
         MessageClient _messageClient;
 
         public MainWindow()
@@ -41,14 +34,16 @@ namespace SRT2Speech.AppWindow
 
         private void InitDefaultValue()
         {
-            _messageClient = new MessageClient("http://localhost:5144/message", SignalMethods.SIGNAL_LOG);
+            _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
+            _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
+            
+            _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG);
             _ = _messageClient.CreateConncetion(async (object message) =>
             {
                 string msg = $"{message}";
                 WriteLog(msg);
             });
-            _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
-            //_vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText("ConfigVbee.yaml"));
+            
             fileInputContent = string.Empty;
             txtLog.AppendText("Logging...");
         }
@@ -132,35 +127,50 @@ namespace SRT2Speech.AppWindow
 
             Task.Run(async () =>
             {
-                using (var httpClient = new HttpClient())
+                try
                 {
-
-                    var uri = new Uri("https://api.fpt.ai/hmi/tts/v5");
-                    httpClient.DefaultRequestHeaders.Add("api-key", "hccDEEYRsrddTX9C1TE7sMj0EJOEzbn1");
-                    httpClient.DefaultRequestHeaders.Add("speed", "");
-                    httpClient.DefaultRequestHeaders.Add("voice", "banmai");
-                    httpClient.DefaultRequestHeaders.Add("callback_url", "https://81cf-14-191-165-222.ngrok-free.app/api/fpt/listen");
-                    httpClient.DefaultRequestHeaders
-                      .Accept
-                      .Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
-                    foreach (var item in texts)
+                    using (var httpClient = new HttpClient())
                     {
-                        var content = new FormUrlEncodedContent(new[]
-                        {
-                                new KeyValuePair<string, string>(item, "")
-                        });
 
-                        var response = await httpClient.PostAsync(uri, content);
-                        if (response.IsSuccessStatusCode)
+                        var uri = new Uri(_fptConfig.Url);
+                        httpClient.DefaultRequestHeaders.Add("api-key", _fptConfig.ApiKey);
+                        httpClient.DefaultRequestHeaders.Add("speed", "");
+                        httpClient.DefaultRequestHeaders.Add("voice", _fptConfig.Voice);
+                        httpClient.DefaultRequestHeaders.Add("callback_url", _fptConfig.CallbackUrl);
+                        httpClient.DefaultRequestHeaders
+                          .Accept
+                          .Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
+
+                        var chunks = texts.ChunkBy<string>(_fptConfig.MaxThreads);
+                        foreach (var item in chunks)
                         {
-                            var responseContent = await response.Content.ReadAsStringAsync();
-                            Console.WriteLine(responseContent);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Error: {response.StatusCode} - {response.ReasonPhrase}");
+                            var tasks = item.Select(async f =>
+                            {
+                                var content = new FormUrlEncodedContent(new[]
+                                {
+                                    new KeyValuePair<string, string>(f, "")
+                                });
+
+                                var response = await httpClient.PostAsync(uri, content);
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    var responseContent = await response.Content.ReadAsStringAsync();
+                                }
+                                else
+                                {
+                                    WriteLog($"Lỗi gọi sang Fpt: {response.StatusCode} - {response.ReasonPhrase}");
+                                }
+                            });
+                            await Task.WhenAll(tasks);
+                            await Task.Delay(TimeSpan.FromSeconds(_fptConfig.SleepTime));
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    // Hiển thị MessageBox với thông tin lỗi
+                    MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    WriteLog($"Xuất hiện lỗi gọi sang FPT, có thể do tài khoản của bạn đã hết dung lượng, nếu chưa hết hãy thử giảm số luồng đồng thời xuống");
                 }
             });
         }
