@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SRT2Speech.Socket.Hubs
+namespace SRT2Speech.Socket.Methods
 {
-    public interface IMessageHubClient
+    public static class SignalMethods
     {
-        Task SendLog(string message);
+        public const string SIGNAL_LOG = "signal-log";
     }
 }

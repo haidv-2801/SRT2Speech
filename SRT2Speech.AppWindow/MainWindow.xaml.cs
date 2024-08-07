@@ -13,8 +13,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using System.Net.Http;
 using System.Net.Http.Headers;
+using SRT2Speech.Socket.Client;
+using SRT2Speech.Socket.Methods;
+using SRT2Speech.AppWindow.Models;
+using SRT2Speech.Core.Utilitys;
 
 namespace SRT2Speech.AppWindow
 {
@@ -24,6 +27,9 @@ namespace SRT2Speech.AppWindow
     public partial class MainWindow : Window
     {
         string fileInputContent;
+        FptConfig _fptConfig;
+        VbeeConfig _vbeeConfig;
+        MessageClient _messageClient;
 
         public MainWindow()
         {
@@ -34,6 +40,14 @@ namespace SRT2Speech.AppWindow
 
         private void InitDefaultValue()
         {
+            _messageClient = new MessageClient("http://localhost:5144/message", SignalMethods.SIGNAL_LOG);
+            _ = _messageClient.CreateConncetion(async (object message) =>
+            {
+                string msg = $"{message}";
+                WriteLog(msg);
+            });
+            _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
+            //_vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText("ConfigVbee.yaml"));
             fileInputContent = string.Empty;
             txtLog.AppendText("Logging...");
         }
@@ -104,7 +118,6 @@ namespace SRT2Speech.AppWindow
             var texts = SRTUtility.ExtractSrt(fileInputContent);
             WriteLog("Extract text from file done.");
             WriteLog("Begin dowload...");
-            WriteLog(string.Join("\n", texts));
 
             Task.Run(async () =>
             {
@@ -115,7 +128,7 @@ namespace SRT2Speech.AppWindow
                     httpClient.DefaultRequestHeaders.Add("api-key", "hccDEEYRsrddTX9C1TE7sMj0EJOEzbn1");
                     httpClient.DefaultRequestHeaders.Add("speed", "");
                     httpClient.DefaultRequestHeaders.Add("voice", "banmai");
-                    httpClient.DefaultRequestHeaders.Add("callback_url", "https://4723-14-191-165-222.ngrok-free.app/api/fpt/listen?index=1");
+                    httpClient.DefaultRequestHeaders.Add("callback_url", "https://81cf-14-191-165-222.ngrok-free.app/api/fpt/listen");
                     httpClient.DefaultRequestHeaders
                       .Accept
                       .Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header

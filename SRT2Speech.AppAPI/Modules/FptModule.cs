@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
 using SRT2Speech.AppAPI.Services.DowloadService;
 using SRT2Speech.Cache;
 using SRT2Speech.Core.Extensions;
+using SRT2Speech.Socket.Methods;
 using System.Net;
 
 namespace SRT2Speech.AppAPI.Modules
@@ -11,12 +13,14 @@ namespace SRT2Speech.AppAPI.Modules
     {
         private readonly IDowloadService _dowloadService;
         private readonly IMemCacheService _memCacheService;
-        public FptModule(IDowloadService dowloadService, IMemCacheService memCacheService) : base("/api/fpt")
+        private readonly IHubContext<MessageHub> _hubContext;
+        public FptModule(IDowloadService dowloadService, IMemCacheService memCacheService, IHubContext<MessageHub> hubContext) : base("/api/fpt")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
             _memCacheService = memCacheService;
+            _hubContext = hubContext;
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)
@@ -27,8 +31,14 @@ namespace SRT2Speech.AppAPI.Modules
             })
               .WithName("FptListenResponse")
               .WithOpenApi();
+
+            app.MapPost("/send", async ([FromQuery] string msg) =>
+            {
+                await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG, msg);
+            })
+             .WithName("SendSignalR")
+             .WithOpenApi();
         }
-      
 
         private async Task<IResult> ListenDowload([FromBody] object body)
         {
@@ -49,6 +59,14 @@ namespace SRT2Speech.AppAPI.Modules
                     }
                     string filePath = Path.Combine("Files/FPT", originalFileName);
                     success = await _dowloadService.DownloadMp3Async(message, filePath);
+                    if (success)
+                    {
+                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG, $"[SUCCESS] dowload Files/FPT/{originalFileName}");
+                    }
+                    else
+                    {
+                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG, $"[FAILED] dowload Files/FPT/{originalFileName}");
+                    }
                 }
             }
             return TypedResults.Ok(success);

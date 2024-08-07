@@ -1,8 +1,10 @@
-using SRT2Speech.AppAPI.Extensions;
-using SRT2Speech.AppAPI.Services.DowloadService;
-using SRT2Speech.Cache;
-
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSignalR()
+    .AddHubOptions<MessageHub>(options =>
+    {
+        options.EnableDetailedErrors = true;
+        options.KeepAliveInterval = TimeSpan.FromSeconds(5);
+    });
 builder.Services.AddCarter();
 builder.Services.AddSignalRService();
 builder.Services.AddEndpointsApiExplorer();
@@ -15,7 +17,6 @@ builder.Services.AddSingleton<IMemCacheService, MemCacheService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -31,7 +32,15 @@ app.MapGet("/test", () =>
 })
 .WithName("test")
 .WithOpenApi();
-
-app.ConfigureSignalR();
 app.MapCarter();
+app.UseRouting();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapHub<MessageHub>("/message", opt =>
+    {
+        opt.Transports =
+       HttpTransportType.WebSockets |
+       HttpTransportType.LongPolling;
+    });
+});
 app.Run();
