@@ -1,8 +1,10 @@
+using SRT2Speech.AppAPI.Extensions;
 using SRT2Speech.AppAPI.Services.DowloadService;
 using SRT2Speech.Cache;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCarter();
+builder.Services.AddSignalRService();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
@@ -30,5 +32,6 @@ app.MapGet("/test", () =>
 .WithName("test")
 .WithOpenApi();
 
+app.ConfigureSignalR();
 app.MapCarter();
 app.Run();

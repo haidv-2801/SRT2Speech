@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,6 +13,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace SRT2Speech.AppWindow
 {
@@ -21,8 +24,6 @@ namespace SRT2Speech.AppWindow
     public partial class MainWindow : Window
     {
         string fileInputContent;
-        private HttpListener _listener;
-        private bool _isListening = false;
 
         public MainWindow()
         {
@@ -104,13 +105,47 @@ namespace SRT2Speech.AppWindow
             WriteLog("Extract text from file done.");
             WriteLog("Begin dowload...");
             WriteLog(string.Join("\n", texts));
+
+            Task.Run(async () =>
+            {
+                using (var httpClient = new HttpClient())
+                {
+
+                    var uri = new Uri("https://api.fpt.ai/hmi/tts/v5");
+                    httpClient.DefaultRequestHeaders.Add("api-key", "hccDEEYRsrddTX9C1TE7sMj0EJOEzbn1");
+                    httpClient.DefaultRequestHeaders.Add("speed", "");
+                    httpClient.DefaultRequestHeaders.Add("voice", "banmai");
+                    httpClient.DefaultRequestHeaders.Add("callback_url", "https://4723-14-191-165-222.ngrok-free.app/api/fpt/listen?index=1");
+                    httpClient.DefaultRequestHeaders
+                      .Accept
+                      .Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
+                    foreach (var item in texts)
+                    {
+                        var content = new FormUrlEncodedContent(new[]
+                        {
+                                new KeyValuePair<string, string>(item, "")
+                        });
+
+                        var response = await httpClient.PostAsync(uri, content);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var responseContent = await response.Content.ReadAsStringAsync();
+                            Console.WriteLine(responseContent);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Error: {response.StatusCode} - {response.ReasonPhrase}");
+                        }
+                    }
+                }
+            });
         }
 
         private async Task DoLongRunningTask()
         {
             await Task.Run(() =>
             {
-               
+
             });
         }
 
