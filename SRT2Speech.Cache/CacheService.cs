@@ -5,7 +5,7 @@ namespace SRT2Speech.Cache
     public class MemCacheOptions
     {
         public TimeSpan DefaultExpiration { get; set; } = TimeSpan.FromMinutes(5);
-        public int MaxItems { get; set; } = 1000;
+        public int MaxItems { get; set; } = 10000;
     }
 
     public class MemCacheService : IMemCacheService

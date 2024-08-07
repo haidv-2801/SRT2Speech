@@ -1,4 +1,5 @@
-﻿namespace SRT2Speech.AppAPI.Services.DowloadService
+﻿
+namespace SRT2Speech.AppAPI.Services.DowloadService
 {
     public class DowloadService : IDowloadService
     {
