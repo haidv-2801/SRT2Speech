@@ -13,5 +13,22 @@ namespace SRT2Speech.Core.Extensions
 
             return default(T);
         }
+
+        public static IEnumerable<IEnumerable<T>> ChunkBy<T>(this IEnumerable<T> source, int chunkSize)
+        {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+
+            if (chunkSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be a positive number.");
+
+            List<T> list = source.ToList();
+            int totalChunks = (int)Math.Ceiling((double)list.Count / chunkSize);
+
+            for (int i = 0; i < totalChunks; i++)
+            {
+                yield return list.GetRange(i * chunkSize, Math.Min(chunkSize, list.Count - i * chunkSize));
+            }
+        }
     }
 }

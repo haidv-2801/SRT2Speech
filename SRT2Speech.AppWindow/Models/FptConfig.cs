@@ -14,5 +14,8 @@ namespace SRT2Speech.AppWindow.Models
         public string Speed { get; set; }
         public string Voice { get; set; }
         public string CallbackUrl { get; set; }
+        public int SleepTime { get; set; }
+        public int MaxThreads { get; set; }
+
     }
 }
