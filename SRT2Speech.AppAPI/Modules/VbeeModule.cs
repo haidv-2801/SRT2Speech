@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
 using SRT2Speech.AppAPI.Services.DowloadService;
+using SRT2Speech.Socket.Methods;
 using System.Net;
 
 namespace SRT2Speech.AppAPI.Modules
@@ -8,11 +10,16 @@ namespace SRT2Speech.AppAPI.Modules
     public class VbeeModule : CarterModule
     {
         private readonly IDowloadService _dowloadService;
-        public VbeeModule(IDowloadService dowloadService) : base("/api/vbee")
+        private readonly IHubContext<MessageHub> _hubContext;
+        private readonly IMemCacheService _memCacheService;
+
+        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext, IMemCacheService memCacheService) : base("/api/vbee")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
+            _hubContext = hubContext;
+            _memCacheService = memCacheService;
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)
@@ -37,8 +44,22 @@ namespace SRT2Speech.AppAPI.Modules
                 if (!string.IsNullOrEmpty(message))
                 {
                     string fileName = Path.GetFileName(message);
-                    string filePath = Path.Combine("Files/Vbee", fileName + ".mp3");
-                    var res = await _dowloadService.DownloadMp3Async(obj.GetSafeValue<string>("audio_link"), filePath);
+                    string originalFileName = _memCacheService.Get<string>(message);
+                    if (string.IsNullOrEmpty(originalFileName))
+                    {
+                        originalFileName = fileName;
+                    }
+                    string filePath = Path.Combine("Files/Vbee", originalFileName + ".mp3");
+                  
+                    var dowloadSuccess = await _dowloadService.DownloadMp3Async(obj.GetSafeValue<string>("audio_link"), filePath);
+                    if (dowloadSuccess)
+                    {
+                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG_VBEE, $"[SUCCESS] dowload Files/Vbee/{originalFileName}");
+                    }
+                    else
+                    {
+                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG_VBEE, $"[FAILED] dowload Files/Vbee/{originalFileName}");
+                    }
                     return TypedResults.Ok(success);
                 }
             }

@@ -8,6 +8,7 @@ namespace SRT2Speech.AppWindow.Models
 {
     public class VbeeConfig
     {
+        public string Token { get; set; }
         public string Url { get; set; }
         public string AppId { get; set; }
         public string SpeedRate { get; set; }
