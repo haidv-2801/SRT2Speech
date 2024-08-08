@@ -306,3 +306,4 @@ __pycache__/
 # WPF generated files
 *.g.cs
 *.g.i.cs
+/SRT2Speech.AppAPI/Files/Vbee

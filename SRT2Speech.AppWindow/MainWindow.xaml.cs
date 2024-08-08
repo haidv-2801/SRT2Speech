@@ -24,6 +24,7 @@ namespace SRT2Speech.AppWindow
         FptConfig _fptConfig;
         SignalRConfig _signalR;
         MessageClient _messageClient;
+        VbeeConfig _vbeeConfig;
 
         public MainWindow()
         {
@@ -36,7 +37,8 @@ namespace SRT2Speech.AppWindow
         {
             _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
             _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
-            
+            _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
+
             _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG);
             _ = _messageClient.CreateConncetion(async (object message) =>
             {
