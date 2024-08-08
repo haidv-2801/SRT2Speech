@@ -21,6 +21,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Newtonsoft.Json;
+using SRT2Speech.Core.Extensions;
 
 namespace SRT2Speech.AppWindow.Views
 {
@@ -49,8 +51,8 @@ namespace SRT2Speech.AppWindow.Views
                 string msg = $"{message}";
                 WriteLog(msg);
             });
-            _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
-            //_vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText("ConfigVbee.yaml"));
+
+            _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
             fileInputContent = string.Empty;
             txtLog.AppendText("Logging...");
         }
@@ -100,36 +102,52 @@ namespace SRT2Speech.AppWindow.Views
 
             Task.Run(async () =>
             {
-                using (var httpClient = new HttpClient())
+                try
                 {
-
-                    var uri = new Uri("https://api.fpt.ai/hmi/tts/v5");
-                    httpClient.DefaultRequestHeaders.Add("api-key", "hccDEEYRsrddTX9C1TE7sMj0EJOEzbn1");
-                    httpClient.DefaultRequestHeaders.Add("speed", "");
-                    httpClient.DefaultRequestHeaders.Add("voice", "banmai");
-                    httpClient.DefaultRequestHeaders.Add("callback_url", "https://81cf-14-191-165-222.ngrok-free.app/api/fpt/listen");
-                    httpClient.DefaultRequestHeaders
-                      .Accept
-                      .Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
-                    foreach (var item in texts)
+                    using (var httpClient = new HttpClient())
                     {
-                        var content = new FormUrlEncodedContent(new[]
+                       
+                        var chunks = texts.ChunkBy<string>(_vbeeConfig.MaxThreads);
+                        foreach (var item in chunks)
                         {
-                                new KeyValuePair<string, string>(item, "")
-                        });
+                            var tasks = item.Select(async f =>
+                            {
+                                var request = new HttpRequestMessage(HttpMethod.Post, _vbeeConfig.Url);
 
-                        var response = await httpClient.PostAsync(uri, content);
-                        if (response.IsSuccessStatusCode)
-                        {
-                            var responseContent = await response.Content.ReadAsStringAsync();
-                            Console.WriteLine(responseContent);
+
+                                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MjI5MTY4MjJ9.0GeK_7gKUTYVACZ2REXwY_sUZn6C7cd6k8rST7tfRJc");
+                                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                                var body = new
+                                {
+                                    voice_code = _vbeeConfig.VoiceCode,
+                                    speed_rate = _vbeeConfig.SpeedRate,
+                                    input_text = f,
+                                    app_id = _vbeeConfig.AppId,
+                                    callback_url = _vbeeConfig.CallbackUrl
+                                };
+                                request.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                                var response = await httpClient.SendAsync(request);
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    var responseContent = await response.Content.ReadAsStringAsync();
+                                    WriteLog($"gọi sang Vbee res: {response.StatusCode} - {responseContent}");
+                                }
+                                else
+                                {
+                                    WriteLog($"Lỗi gọi sang Fpt: {response.StatusCode} - {response.ReasonPhrase}");
+                                }
+                            });
+                            await Task.WhenAll(tasks);
+                            await Task.Delay(TimeSpan.FromSeconds(_vbeeConfig.SleepTime));
                         }
-                        else
-                        {
-                            Console.WriteLine($"Error: {response.StatusCode} - {response.ReasonPhrase}");
-                        }
+
                     }
                 }
+                catch(Exception ex) {
+                    MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    WriteLog($"Xuất hiện lỗi gọi sang Vbee");
+                }
+               
             });
         }
 
