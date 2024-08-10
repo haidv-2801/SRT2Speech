@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using SRT2Speech.AppAPI.Services.DowloadService;
 using SRT2Speech.Cache;
 using SRT2Speech.Core.Extensions;
+using SRT2Speech.Core.Models;
 using SRT2Speech.Socket.Methods;
 using System.Net;
 
@@ -14,13 +15,15 @@ namespace SRT2Speech.AppAPI.Modules
         private readonly IDowloadService _dowloadService;
         private readonly IMemCacheService _memCacheService;
         private readonly IHubContext<MessageHub> _hubContext;
-        public FptModule(IDowloadService dowloadService, IMemCacheService memCacheService, IHubContext<MessageHub> hubContext) : base("/api/fpt")
+        private readonly IMicrosoftCacheService _microsoftCacheService;
+        public FptModule(IDowloadService dowloadService, IMemCacheService memCacheService, IHubContext<MessageHub> hubContext, IMicrosoftCacheService microsoftCacheService) : base("/api/fpt")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
             _memCacheService = memCacheService;
             _hubContext = hubContext;
+            _microsoftCacheService = microsoftCacheService;
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)
@@ -42,6 +45,7 @@ namespace SRT2Speech.AppAPI.Modules
 
         private async Task<IResult> ListenDowload([FromBody] object body)
         {
+            await Task.Delay(1000);
             var obj = JObject.Parse(body.ToString()!);
 
             bool success = obj.GetSafeValue<bool>("success");
@@ -52,7 +56,8 @@ namespace SRT2Speech.AppAPI.Modules
                 {
                     string fileName = Path.GetFileName(message);
                     string requestId = obj.GetSafeValue<string>("requestid");
-                    string originalFileName = _memCacheService.Get<string>(requestId);
+                    string originalFileName = JObject.Parse(_microsoftCacheService.Get<object>(requestId).ToString()!)
+                                                          .GetSafeValue<string>("FileName");
                     if (string.IsNullOrEmpty(originalFileName))
                     {
                         originalFileName = fileName;

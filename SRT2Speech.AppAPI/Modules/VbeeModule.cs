@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json.Linq;
 using SRT2Speech.AppAPI.Services.DowloadService;
+using SRT2Speech.Core.Models;
 using System.Net;
 
 namespace SRT2Speech.AppAPI.Modules
@@ -8,11 +9,13 @@ namespace SRT2Speech.AppAPI.Modules
     public class VbeeModule : CarterModule
     {
         private readonly IDowloadService _dowloadService;
-        public VbeeModule(IDowloadService dowloadService) : base("/api/vbee")
+        private readonly IMicrosoftCacheService _microsoftCacheService;
+        public VbeeModule(IDowloadService dowloadService, IMicrosoftCacheService microsoftCacheService) : base("/api/vbee")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
+            _microsoftCacheService = microsoftCacheService;
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)
@@ -28,16 +31,23 @@ namespace SRT2Speech.AppAPI.Modules
 
         private async Task<IResult> ListenDowload([FromBody] object body)
         {
+            await Task.Delay(1000);
             var obj = JObject.Parse(body.ToString()!);
 
             string success = obj.GetSafeValue<string>("status");
             if (success == "SUCCESS")
             {
-                string message = obj.GetSafeValue<string>("request_id");
-                if (!string.IsNullOrEmpty(message))
+                string requestId = obj.GetSafeValue<string>("request_id");
+                if (!string.IsNullOrEmpty(requestId))
                 {
-                    string fileName = Path.GetFileName(message);
-                    string filePath = Path.Combine("Files/Vbee", fileName + ".mp3");
+                    string fileName = Path.GetFileName(requestId);
+                    string originalFileName = JObject.Parse(_microsoftCacheService.Get<object>(requestId).ToString()!)
+                                                           .GetSafeValue<string>("FileName");
+                    if (string.IsNullOrEmpty(originalFileName))
+                    {
+                        originalFileName = fileName;
+                    }
+                    string filePath = Path.Combine("Files/Vbee", originalFileName + ".mp3");
                     var res = await _dowloadService.DownloadMp3Async(obj.GetSafeValue<string>("audio_link"), filePath);
                     return TypedResults.Ok(success);
                 }

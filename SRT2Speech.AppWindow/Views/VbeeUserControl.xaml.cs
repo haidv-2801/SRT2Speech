@@ -23,6 +23,11 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Newtonsoft.Json;
 using SRT2Speech.Core.Extensions;
+using Newtonsoft.Json.Linq;
+using SRT2Speech.Core.Models;
+using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
+using SRT2Speech.Cache;
 
 namespace SRT2Speech.AppWindow.Views
 {
@@ -35,6 +40,7 @@ namespace SRT2Speech.AppWindow.Views
         FptConfig _fptConfig;
         VbeeConfig _vbeeConfig;
         MessageClient _messageClient;
+        string nameFileInput;
 
         public VbeeUserControl()
         {
@@ -79,6 +85,7 @@ namespace SRT2Speech.AppWindow.Views
                 {
                     MessageBox.Show("File name empty.");
                 }
+                nameFileInput = System.IO.Path.GetFileName(openFileDialog.FileName);
                 fileInputContent = File.ReadAllText(openFileDialog.FileName);
                 if (string.IsNullOrEmpty(fileInputContent))
                 {
@@ -108,9 +115,11 @@ namespace SRT2Speech.AppWindow.Views
                     {
                        
                         var chunks = texts.ChunkBy<string>(_vbeeConfig.MaxThreads);
+                        var microCacheProvider = ((App)Application.Current).ServiceProvider.GetRequiredService<IMicrosoftCacheService>();
+
                         foreach (var item in chunks)
                         {
-                            var tasks = item.Select(async f =>
+                            var tasks = item.Select(async (f,index) =>
                             {
                                 var request = new HttpRequestMessage(HttpMethod.Post, _vbeeConfig.Url);
 
@@ -130,6 +139,26 @@ namespace SRT2Speech.AppWindow.Views
                                 if (response.IsSuccessStatusCode)
                                 {
                                     var responseContent = await response.Content.ReadAsStringAsync();
+                                    var res = JsonConvert.DeserializeObject<JObject>(responseContent);
+                                    var result = JObject.Parse(res.GetSafeValue<object>("result").ToString()!);
+                                    var requestCạche = new HttpRequestMessage(HttpMethod.Post, "https://localhost:56076/api/cache/set-cache");
+
+                                    requestCạche.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                                    var bodyCache = new BaseRequestCache
+                                    {
+
+                                        Key = result.GetSafeValue<string>("request_id"),
+                                        Value = JsonConvert.SerializeObject( new VbeeCacheModel() { FileName = nameFileInput + $"_{index + 1}" })
+                                    };
+                                    requestCạche.Content = new StringContent(JsonConvert.SerializeObject(bodyCache), Encoding.UTF8, "application/json");
+                                    try
+                                    {
+                                        var resCache = await httpClient.SendAsync(requestCạche);
+                                    }
+                                    catch (Exception ex) {
+                                        WriteLog($"Lỗi gọi set cache Vbee: {ex}");
+                                    }
+                                   
                                     WriteLog($"gọi sang Vbee res: {response.StatusCode} - {responseContent}");
                                 }
                                 else

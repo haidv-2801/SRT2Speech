@@ -10,11 +10,12 @@ builder.Services.AddSignalRService();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 
 //inject service
 builder.Services.AddTransient<IDowloadService, DowloadService>();
 builder.Services.AddSingleton<IMemCacheService, MemCacheService>();
-
+builder.Services.AddSingleton<IMicrosoftCacheService, MicrosoftCacheService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
