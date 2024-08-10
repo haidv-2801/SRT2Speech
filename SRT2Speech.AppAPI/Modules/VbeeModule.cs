@@ -13,15 +13,17 @@ namespace SRT2Speech.AppAPI.Modules
         private readonly IDowloadService _dowloadService;
         private readonly IHubContext<MessageHub> _hubContext;
         private readonly IMemCacheService _memCacheService;
+        private readonly IMicrosoftCacheService _microsoftCacheService;
 
-        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext, IMemCacheService memCacheService) : base("/api/vbee")
+        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext,IMicrosoftCacheService microsoftCacheService) : base("/api/vbee")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
             _hubContext = hubContext;
-            _memCacheService = memCacheService;
+            
             _microsoftCacheService = microsoftCacheService;
+            
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)
@@ -55,6 +57,14 @@ namespace SRT2Speech.AppAPI.Modules
                     }
                     string filePath = Path.Combine("Files/Vbee", originalFileName + ".mp3");
                     var res = await _dowloadService.DownloadMp3Async(obj.GetSafeValue<string>("audio_link"), filePath);
+                    if (res)
+                    {
+                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG, $"[SUCCESS] dowload Files/Vbee/{originalFileName}");
+                    }
+                    else
+                    {
+                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG, $"[FAILED] dowload Files/Vbee/{originalFileName}");
+                    }
                     return TypedResults.Ok(success);
                 }
             }
