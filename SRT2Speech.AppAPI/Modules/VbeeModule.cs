@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
 using SRT2Speech.AppAPI.Services.DowloadService;
+using SRT2Speech.Socket.Methods;
 using SRT2Speech.Core.Models;
 using System.Net;
 
@@ -9,12 +11,16 @@ namespace SRT2Speech.AppAPI.Modules
     public class VbeeModule : CarterModule
     {
         private readonly IDowloadService _dowloadService;
-        private readonly IMicrosoftCacheService _microsoftCacheService;
-        public VbeeModule(IDowloadService dowloadService, IMicrosoftCacheService microsoftCacheService) : base("/api/vbee")
+        private readonly IHubContext<MessageHub> _hubContext;
+        private readonly IMemCacheService _memCacheService;
+
+        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext, IMemCacheService memCacheService) : base("/api/vbee")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
+            _hubContext = hubContext;
+            _memCacheService = memCacheService;
             _microsoftCacheService = microsoftCacheService;
         }
 

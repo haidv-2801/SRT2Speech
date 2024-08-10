@@ -18,6 +18,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace SRT2Speech.AppWindow
 {
@@ -31,7 +32,6 @@ namespace SRT2Speech.AppWindow
         FptConfig _fptConfig;
         SignalRConfig _signalR;
         MessageClient _messageClient;
-        VbeeConfig _vbeeConfig;
 
 
         public MainWindow()
@@ -46,7 +46,6 @@ namespace SRT2Speech.AppWindow
         {
             _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
             _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
-            _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
 
             _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG);
             _ = _messageClient.CreateConncetion(async (object message) =>
@@ -134,9 +133,9 @@ namespace SRT2Speech.AppWindow
                 MessageBox.Show("Please choose file.");
                 return;
             }
-            WriteLog("Begin extract text from file.");
+            WriteLog("Bắt đầu đọc file SRT.");
             var texts = SRTUtility.ExtractSrt(fileInputContent);
-            WriteLog("Extract text from file done.");
+            WriteLog($"Đọc xong file SRT. Tổng {texts.Count} file mp3 cần dowload.");
             WriteLog("Begin dowload...");
             var microCacheProvider = ((App)Application.Current).ServiceProvider.GetRequiredService<IMicrosoftCacheService>();
             Task.Run(async () =>

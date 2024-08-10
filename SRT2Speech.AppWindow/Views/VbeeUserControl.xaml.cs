@@ -37,8 +37,8 @@ namespace SRT2Speech.AppWindow.Views
     public partial class VbeeUserControl : UserControl
     {
         string fileInputContent;
-        FptConfig _fptConfig;
         VbeeConfig _vbeeConfig;
+        SignalRConfig _signalR;
         MessageClient _messageClient;
         string nameFileInput;
 
@@ -51,14 +51,15 @@ namespace SRT2Speech.AppWindow.Views
 
         private void InitDefaultValue()
         {
-            _messageClient = new MessageClient("http://localhost:5144/message", SignalMethods.SIGNAL_LOG_VBEE);
+            _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
+            _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
+            _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG_VBEE);
             _ = _messageClient.CreateConncetion(async (object message) =>
             {
                 string msg = $"{message}";
                 WriteLog(msg);
             });
 
-            _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
             fileInputContent = string.Empty;
             txtLog.AppendText("Logging...");
         }
@@ -124,7 +125,7 @@ namespace SRT2Speech.AppWindow.Views
                                 var request = new HttpRequestMessage(HttpMethod.Post, _vbeeConfig.Url);
 
 
-                                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MjI5MTY4MjJ9.0GeK_7gKUTYVACZ2REXwY_sUZn6C7cd6k8rST7tfRJc");
+                                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _vbeeConfig.Token);
                                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                                 var body = new
                                 {
@@ -163,7 +164,7 @@ namespace SRT2Speech.AppWindow.Views
                                 }
                                 else
                                 {
-                                    WriteLog($"Lỗi gọi sang Fpt: {response.StatusCode} - {response.ReasonPhrase}");
+                                    WriteLog($"Lỗi gọi sang Vbee: {response.StatusCode} - {response.ReasonPhrase}");
                                 }
                             });
                             await Task.WhenAll(tasks);
