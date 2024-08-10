@@ -310,3 +310,4 @@ __pycache__/
 ReleaseStartApp
 *.g.i.cs
 /SRT2Speech.AppAPI/Files/Vbee
+/SRT2Speech.AppAPI/Files/FPT
