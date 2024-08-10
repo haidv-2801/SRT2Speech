@@ -41,7 +41,6 @@ namespace SRT2Speech.AppWindow
             InitContent();
 
         }
-
         private void InitDefaultValue()
         {
             _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
@@ -72,6 +71,12 @@ namespace SRT2Speech.AppWindow
             newTab.Header = "Vbee";
             newTab.Content = vbeeControl;
             tabControl.Items.Add(newTab);
+
+            EnglishVoiceControl enControl = new EnglishVoiceControl();
+            TabItem newTab1 = new TabItem();
+            newTab1.Header = "EnglishVoice";
+            newTab1.Content = enControl;
+            tabControl.Items.Add(newTab1);
         }
 
         private void FullWidthLog()
@@ -192,6 +197,7 @@ namespace SRT2Speech.AppWindow
                                 }
                             });
                             await Task.WhenAll(tasks);
+                            WriteLog($"Bắt đầu đợi {_fptConfig.SleepTime} giây đến lần tiếp theo.");
                             await Task.Delay(TimeSpan.FromSeconds(_fptConfig.SleepTime));
                         }
                     }

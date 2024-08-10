@@ -1,11 +1,13 @@
 ﻿using AutoApp.Utility;
 using Microsoft.Win32;
+using Newtonsoft.Json;
 using SRT2Speech.AppWindow.Models;
 using SRT2Speech.Core.Utilitys;
 using SRT2Speech.Socket.Client;
 using SRT2Speech.Socket.Methods;
 using System;
 using System.Collections.Generic;
+using System.Formats.Tar;
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
@@ -21,41 +23,31 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using Newtonsoft.Json;
 using SRT2Speech.Core.Extensions;
-using Newtonsoft.Json.Linq;
-using SRT2Speech.Core.Models;
-using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
-using SRT2Speech.Cache;
 
 namespace SRT2Speech.AppWindow.Views
 {
     /// <summary>
-    /// Interaction logic for VbeeUserControl.xaml
+    /// Interaction logic for EnglishVoiceControl.xaml
     /// </summary>
-    public partial class VbeeUserControl : UserControl
+    public partial class EnglishVoiceControl : UserControl
     {
         string fileInputContent;
         VbeeConfig _vbeeConfig;
         SignalRConfig _signalR;
         MessageClient _messageClient;
-        int threadHold = 120;
-        string nameFileInput;
 
-        public VbeeUserControl()
+        public EnglishVoiceControl()
         {
             InitializeComponent();
             InitDefaultValue();
             InitContent();
         }
-
         private void InitDefaultValue()
         {
             _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
             _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
-            WriteLog($"Thông tin cấu hình Vbee Thread={_vbeeConfig.MaxThreads}, SleepTime={_vbeeConfig.SleepTime}");
-            _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG_VBEE);
+            _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG_EN_VOICE);
             _ = _messageClient.CreateConncetion(async (object message) =>
             {
                 string msg = $"{message}";
@@ -73,7 +65,6 @@ namespace SRT2Speech.AppWindow.Views
 
         private void FullWidthLog()
         {
-            //txtLog.Width = SystemParameters.PrimaryScreenWidth - 24;
             txtLog.Height = SystemParameters.PrimaryScreenHeight - 480;
         }
 
@@ -88,7 +79,6 @@ namespace SRT2Speech.AppWindow.Views
                 {
                     MessageBox.Show("File name empty.");
                 }
-                nameFileInput = System.IO.Path.GetFileName(openFileDialog.FileName);
                 fileInputContent = File.ReadAllText(openFileDialog.FileName);
                 if (string.IsNullOrEmpty(fileInputContent))
                 {
@@ -114,73 +104,59 @@ namespace SRT2Speech.AppWindow.Views
             {
                 try
                 {
-                    using (var httpClient = new HttpClient())
+                    string apiKey = "AIzaSyDCtKbU-BouZiOqBGNvuSdpVaNCfqD0a64";
+                    string url = $"https://texttospeech.googleapis.com/v1/text:synthesize?key={apiKey}";
+                    using (var client = new HttpClient())
                     {
-                       
                         var chunks = texts.ChunkBy<string>(_vbeeConfig.MaxThreads);
-                        var microCacheProvider = ((App)Application.Current).ServiceProvider.GetRequiredService<IMicrosoftCacheService>();
-
                         foreach (var item in chunks)
                         {
-                            var tasks = item.Select(async (f,index) =>
+                            var tasks = item.Select(async f =>
                             {
-                                var request = new HttpRequestMessage(HttpMethod.Post, _vbeeConfig.Url);
-
-
-                                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _vbeeConfig.Token);
-                                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                                var body = new
+                                var requestBody = new
                                 {
-                                    voice_code = _vbeeConfig.VoiceCode,
-                                    speed_rate = _vbeeConfig.SpeedRate,
-                                    input_text = f,
-                                    app_id = _vbeeConfig.AppId,
-                                    callback_url = _vbeeConfig.CallbackUrl
+                                    input = new { text = f},
+                                    voice = new
+                                    {
+                                        languageCode = "en-US",
+                                        name = "en-US-Studio-O"
+                                    },
+                                    audioConfig = new { audioEncoding = "MP3", speakingRate = "1" }
                                 };
-                                request.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-                                var response = await httpClient.SendAsync(request);
+
+                                var jsonContent = JsonConvert.SerializeObject(requestBody);
+                                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                                var response = await client.PostAsync(url, content);
+
+                                var responseContent = await response.Content.ReadAsStringAsync();
                                 if (response.IsSuccessStatusCode)
                                 {
-                                    var responseContent = await response.Content.ReadAsStringAsync();
-                                    var res = JsonConvert.DeserializeObject<JObject>(responseContent);
-                                    var result = JObject.Parse(res.GetSafeValue<object>("result").ToString()!);
-                                    var requestCạche = new HttpRequestMessage(HttpMethod.Post, "https://localhost:56076/api/cache/set-cache");
+                                    var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
+                                    var audioContent = result.audioContent;
 
-                                    requestCạche.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                                    var bodyCache = new BaseRequestCache
-                                    {
-
-                                        Key = result.GetSafeValue<string>("request_id"),
-                                        Value = JsonConvert.SerializeObject( new VbeeCacheModel() { FileName = nameFileInput + $"_{index + 1}" })
-                                    };
-                                    requestCạche.Content = new StringContent(JsonConvert.SerializeObject(bodyCache), Encoding.UTF8, "application/json");
-                                    try
-                                    {
-                                        var resCache = await httpClient.SendAsync(requestCạche);
-                                    }
-                                    catch (Exception ex) {
-                                        WriteLog($"Lỗi gọi set cache Vbee: {ex}");
-                                    }
-                                   
-                                    WriteLog($"gọi sang Vbee res: {response.StatusCode} - {responseContent}");
+                                    // Lưu tệp MP3
+                                    byte[] audioBytes = Convert.FromBase64String((string)audioContent);
+                                    await System.IO.File.WriteAllBytesAsync($"OUTPUT/{Guid.NewGuid()}_output.mp3", audioBytes);
+                                    WriteLog("Audio file saved as output.mp3");
                                 }
                                 else
                                 {
-                                    WriteLog($"Lỗi gọi sang Vbee: {response.StatusCode} - {response.ReasonPhrase}");
+                                    WriteLog("Error: " + responseContent);
                                 }
                             });
                             await Task.WhenAll(tasks);
                             await Task.Delay(TimeSpan.FromSeconds(_vbeeConfig.SleepTime));
                         }
 
-                            WriteLog($"Đã gửi đến ngưỡng của Vbee cần đợi {threadHold} giây để  tiếp tục gửi");
-                        }
                     }
                 }
-                catch(Exception ex) {
+                catch (Exception ex)
+                {
                     MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    WriteLog($"Xuất hiện lỗi gọi sang Vbee");
+                    WriteLog($"Xuất hiện lỗi gọi sang Google");
                 }
+
             });
         }
 
