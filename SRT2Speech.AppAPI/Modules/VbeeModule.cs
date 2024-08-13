@@ -5,6 +5,7 @@ using SRT2Speech.AppAPI.Services.DowloadService;
 using SRT2Speech.Socket.Methods;
 using SRT2Speech.Core.Models;
 using System.Net;
+using SRT2Speech.Socket.Models;
 
 namespace SRT2Speech.AppAPI.Modules
 {
@@ -15,15 +16,15 @@ namespace SRT2Speech.AppAPI.Modules
         private readonly IMemCacheService _memCacheService;
         private readonly IMicrosoftCacheService _microsoftCacheService;
 
-        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext,IMicrosoftCacheService microsoftCacheService) : base("/api/vbee")
+        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext, IMicrosoftCacheService microsoftCacheService) : base("/api/vbee")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
             _hubContext = hubContext;
-            
+
             _microsoftCacheService = microsoftCacheService;
-            
+
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)
@@ -39,8 +40,8 @@ namespace SRT2Speech.AppAPI.Modules
 
         private async Task<IResult> ListenDowload([FromBody] object body)
         {
-            await Task.Delay(1000);
             var obj = JObject.Parse(body.ToString()!);
+            Console.WriteLine($"[Vbee] response = {body.ToString()}");
 
             string success = obj.GetSafeValue<string>("status");
             if (success == "SUCCESS")
@@ -49,22 +50,21 @@ namespace SRT2Speech.AppAPI.Modules
                 if (!string.IsNullOrEmpty(requestId))
                 {
                     string fileName = Path.GetFileName(requestId);
-                    string originalFileName = JObject.Parse(_microsoftCacheService.Get<object>(requestId).ToString()!)
-                                                           .GetSafeValue<string>("FileName");
-                    if (string.IsNullOrEmpty(originalFileName))
-                    {
-                        originalFileName = fileName;
-                    }
+                    string originalFileName = fileName;
                     string filePath = Path.Combine("Files/Vbee", originalFileName + ".mp3");
                     var res = await _dowloadService.DownloadMp3Async(obj.GetSafeValue<string>("audio_link"), filePath);
-                    if (res)
+
+                    var signalItem = new SignalItem()
                     {
-                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG, $"[SUCCESS] dowload Files/Vbee/{originalFileName}");
-                    }
-                    else
-                    {
-                        await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG, $"[FAILED] dowload Files/Vbee/{originalFileName}");
-                    }
+                        Id = requestId,
+                        TimeStamp = DateTime.Now,
+                        Data = new
+                        {
+                            success = res,
+                            message = res ? $"[SUCCESS] dowload Files/Vbee/{originalFileName}" : $"[FAILED] dowload Files/Vbee/{originalFileName}"
+                        }
+                    };
+                    await _hubContext.Clients.All.SendAsync(SignalMethods.SIGNAL_LOG_VBEE, signalItem);
                     return TypedResults.Ok(success);
                 }
             }

@@ -1,3 +1,5 @@
+using SRT2Speech.Socket.Client;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR()
     .AddHubOptions<MessageHub>(options =>

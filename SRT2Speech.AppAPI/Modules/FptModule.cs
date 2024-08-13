@@ -45,9 +45,8 @@ namespace SRT2Speech.AppAPI.Modules
 
         private async Task<IResult> ListenDowload([FromBody] object body)
         {
-            await Task.Delay(1000);
+            Console.WriteLine($"Response = {body}");
             var obj = JObject.Parse(body.ToString()!);
-
             bool success = obj.GetSafeValue<bool>("success");
             if (success)
             {
@@ -55,9 +54,7 @@ namespace SRT2Speech.AppAPI.Modules
                 if (!string.IsNullOrEmpty(message))
                 {
                     string fileName = Path.GetFileName(message);
-                    string requestId = obj.GetSafeValue<string>("requestid");
-                    string originalFileName = JObject.Parse(_microsoftCacheService.Get<object>(requestId).ToString()!)
-                                                          .GetSafeValue<string>("FileName");
+                    string originalFileName = fileName;
                     if (string.IsNullOrEmpty(originalFileName))
                     {
                         originalFileName = fileName;

@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SRT2Speech.AppWindow.Models;
+using SRT2Speech.AppWindow.Services;
 using SRT2Speech.AppWindow.Views;
 using SRT2Speech.Cache;
 using SRT2Speech.Core.Extensions;
@@ -11,13 +12,16 @@ using SRT2Speech.Core.Models;
 using SRT2Speech.Core.Utilitys;
 using SRT2Speech.Socket.Client;
 using SRT2Speech.Socket.Methods;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Xml.Linq;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace SRT2Speech.AppWindow
@@ -29,32 +33,42 @@ namespace SRT2Speech.AppWindow
     {
         string fileInputContent;
         string nameFileInput;
+        string location = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
         FptConfig _fptConfig;
         SignalRConfig _signalR;
         MessageClient _messageClient;
+        ConcurrentDictionary<string, SubtitleEntry> _trackError;
 
 
         public MainWindow()
         {
+            
             InitializeComponent();
             InitDefaultValue();
             InitContent();
-
         }
         private void InitDefaultValue()
         {
+            _trackError = new ConcurrentDictionary<string, SubtitleEntry>();
             _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
             _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
+            WriteLog($"Thông tin cấu hình Vbee Thread={_fptConfig.MaxThreads}, SleepTime={_fptConfig.SleepTime}, Callback={_fptConfig.CallbackUrl}");
+            //try
+            //{
+            //    _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG);
+            //    _ = _messageClient.CreateConncetion(async (object message) =>
+            //    {
+            //        string msg = $"{message}";
+            //        WriteLog(msg);
+            //    });
+            //}
+            //catch (Exception ex)
+            //{
 
-            _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG);
-            _ = _messageClient.CreateConncetion(async (object message) =>
-            {
-                string msg = $"{message}";
-                WriteLog(msg);
-            });
+            //    WriteLog($"Lỗi connect {ex.Message}");
+            //}
 
             fileInputContent = string.Empty;
-            txtLog.AppendText("Logging...");
         }
 
         private void InitContent()
@@ -77,6 +91,12 @@ namespace SRT2Speech.AppWindow
             newTab1.Header = "EnglishVoice";
             newTab1.Content = enControl;
             tabControl.Items.Add(newTab1);
+
+            MediaProccessControl mediaControl = new MediaProccessControl();
+            TabItem newTab2 = new TabItem();
+            newTab2.Header = "Media";
+            newTab2.Content = mediaControl;
+            tabControl.Items.Add(newTab2);
         }
 
         private void FullWidthLog()
@@ -115,7 +135,7 @@ namespace SRT2Speech.AppWindow
             if (openFileDialog.ShowDialog() == true)
             {
                 txtFile.Text = openFileDialog.FileName;
-                 
+
 
                 if (string.IsNullOrEmpty(txtFile.Text))
                 {
@@ -139,76 +159,96 @@ namespace SRT2Speech.AppWindow
                 return;
             }
             WriteLog("Bắt đầu đọc file SRT.");
-            var texts = SRTUtility.ExtractSrt(fileInputContent);
+            var texts = SRTUtility.ParseSubtitleString(fileInputContent);
             WriteLog($"Đọc xong file SRT. Tổng {texts.Count} file mp3 cần dowload.");
             WriteLog("Begin dowload...");
-            var microCacheProvider = ((App)Application.Current).ServiceProvider.GetRequiredService<IMicrosoftCacheService>();
-            Task.Run(async () =>
+            Task.Run(async () => await StartT2S(texts));
+        }
+
+        public HttpRequestMessage GetRqMessage(string url)
+        {
+            var rqGet = new HttpRequestMessage(HttpMethod.Get, $"{url}");
+            rqGet.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            return rqGet;
+        }
+
+        private async Task StartT2S(List<SubtitleEntry> texts)
+        {
+            string directoryPath = "Files/FPT";
+            if (!Directory.Exists(directoryPath))
             {
-                try
+                Directory.CreateDirectory(directoryPath);
+            }
+            try
+            {
+                using (var httpClient = new HttpClient())
                 {
-                    using (var httpClient = new HttpClient())
+                    var uri = new Uri(_fptConfig.Url);
+                    httpClient.DefaultRequestHeaders.Add("api-key", _fptConfig.ApiKey);
+                    httpClient.DefaultRequestHeaders.Add("speed", "");
+                    httpClient.DefaultRequestHeaders.Add("voice", _fptConfig.Voice);
+                    httpClient.DefaultRequestHeaders.Add("callback_url", _fptConfig.CallbackUrl);
+                    httpClient.DefaultRequestHeaders
+                      .Accept
+                      .Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
+
+                    var chunks = texts.ChunkBy(_fptConfig.MaxThreads);
+                    foreach (var item in chunks)
                     {
-
-                        var uri = new Uri(_fptConfig.Url);
-                        httpClient.DefaultRequestHeaders.Add("api-key", _fptConfig.ApiKey);
-                        httpClient.DefaultRequestHeaders.Add("speed", "");
-                        httpClient.DefaultRequestHeaders.Add("voice", _fptConfig.Voice);
-                        httpClient.DefaultRequestHeaders.Add("callback_url", _fptConfig.CallbackUrl);
-                        httpClient.DefaultRequestHeaders
-                          .Accept
-                          .Add(new MediaTypeWithQualityHeaderValue("application/json"));//ACCEPT header
-
-                        var chunks = texts.ChunkBy<string>(_fptConfig.MaxThreads);
-                        foreach (var item in chunks)
+                        var tasks = item.Select(async (f, index) =>
                         {
-                            var tasks = item.Select(async (f, index) =>
+                            var content = new StringContent(f.Text, Encoding.UTF8, "application/json");
+
+                            var response = await httpClient.PostAsync(uri, content);
+                            if (response.IsSuccessStatusCode)
                             {
-                                var content = new StringContent(f, Encoding.UTF8, "application/json");
+                                var responseContent = await response.Content.ReadAsStringAsync();
+                                var responseObject = JObject.Parse(responseContent);
+                                string requestId = responseObject.GetSafeValue<string>("request_id");
+                                string link = responseObject.GetSafeValue<string>("async");
+                                WriteLog($"Gọi sang FPT thành công: {responseContent}");
 
-                                var response = await httpClient.PostAsync(uri, content);
-                                if (response.IsSuccessStatusCode)
+                                _trackError.Remove(f.Index.ToString(), out SubtitleEntry? _);
+                                _trackError.AddOrUpdate(requestId, f, (_, _) => f);
+                                
+                                _ = Task.Run(async () =>
                                 {
-                                    var responseContent = await response.Content.ReadAsStringAsync();
-                                    var res = JsonConvert.DeserializeObject<JObject>(responseContent);
-                                    var requestCạche = new HttpRequestMessage(HttpMethod.Post, "https://localhost:56076/api/cache/set-cache");
-
-                                    requestCạche.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                                    var bodyCache = new BaseRequestCache
+                                    await Task.Delay(3000);
+                                    var dowload = await RetryWithJitterAndPolly1.ExecuteWithRetryAndJitterAsync(async () => await httpClient.SendAsync(GetRqMessage(link)), (res) =>
                                     {
-
-                                        Key = res.GetSafeValue<string>("request_id"),
-                                        Value = JsonConvert.SerializeObject(new FptCacheModel() { FileName = nameFileInput + $"_{index + 1}" })
-                                    };
-                                    requestCạche.Content = new StringContent(JsonConvert.SerializeObject(bodyCache), Encoding.UTF8, "application/json");
-                                    try
+                                        WriteLog($"[RETRY] Đang cố dowload {f.Index}.mp3 từ FPT...");
+                                        return res.IsSuccessStatusCode && res.StatusCode != System.Net.HttpStatusCode.NotFound;
+                                    });
+                                  
+                                    string filePath = Path.Combine(location, $"Files/FPT/{f.Index}.mp3");
+                                    var stream = await dowload.Content.ReadAsStreamAsync();
+                                    using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                                     {
-                                        var resCache = await httpClient.SendAsync(requestCạche);
+                                        await stream.CopyToAsync(fileStream);
                                     }
-                                    catch(Exception ex)
-                                    {
-                                        WriteLog($"Lỗi gọi set cache Fpt: {ex}");
-                                    }
-                                   
-                                }
-                                else
-                                {
-                                    WriteLog($"Lỗi gọi sang Fpt: {response.StatusCode} - {response.ReasonPhrase}");
-                                }
-                            });
-                            await Task.WhenAll(tasks);
-                            WriteLog($"Bắt đầu đợi {_fptConfig.SleepTime} giây đến lần tiếp theo.");
-                            await Task.Delay(TimeSpan.FromSeconds(_fptConfig.SleepTime));
-                        }
+                                    _trackError.Remove(requestId, out SubtitleEntry? _);
+                                    WriteLog($"[DOWLOADED] Dowload thành công {f.Index}.mp3, link = {link}");
+
+                                });
+                                f.RequestId = requestId;
+                            }
+                            else
+                            {
+                                WriteLog($"Lỗi gọi sang Fpt: {response.StatusCode} - {response.ReasonPhrase}");
+                            }
+                        });
+                        await Task.WhenAll(tasks);
+                        WriteLog($"Bắt đầu đợi {_fptConfig.SleepTime} giây đến lần tiếp theo.");
+                        await Task.Delay(TimeSpan.FromSeconds(_fptConfig.SleepTime));
                     }
                 }
-                catch (Exception ex)
-                {
-                    // Hiển thị MessageBox với thông tin lỗi
-                    MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    WriteLog($"Xuất hiện lỗi gọi sang FPT, có thể do tài khoản của bạn đã hết dung lượng, nếu chưa hết hãy thử giảm số luồng đồng thời xuống");
-                }
-            });
+            }
+            catch (Exception ex)
+            {
+                // Hiển thị MessageBox với thông tin lỗi
+                MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                WriteLog($"Xuất hiện lỗi gọi sang FPT, có thể do tài khoản của bạn đã hết dung lượng, nếu chưa hết hãy thử giảm số luồng đồng thời xuống");
+            }
         }
 
         private bool WriteLog(string message)
