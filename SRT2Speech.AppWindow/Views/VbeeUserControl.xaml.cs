@@ -12,6 +12,7 @@ using SRT2Speech.Core.Utilitys;
 using SRT2Speech.Socket.Client;
 using SRT2Speech.Socket.Methods;
 using SRT2Speech.Socket.Models;
+using SubtitlesParser.Classes;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
@@ -34,7 +35,7 @@ namespace SRT2Speech.AppWindow.Views
         VbeeConfig _vbeeConfig;
         SignalRConfig _signalR;
         MessageClient _messageClient;
-        ConcurrentDictionary<string, SubtitleEntry> _trackError;
+        ConcurrentDictionary<string, SubtitleItem> _trackError;
         private static readonly HttpClient _httpClient = new HttpClient();
 
         public VbeeUserControl()
@@ -46,8 +47,8 @@ namespace SRT2Speech.AppWindow.Views
 
         private void InitDefaultValue()
         {
-            _trackError = new ConcurrentDictionary<string, SubtitleEntry>();
-            _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
+            _trackError = new ConcurrentDictionary<string, SubtitleItem>();
+            //_signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
             _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
             WriteLog($"Thông tin cấu hình Vbee Thread={_vbeeConfig.MaxThreads}, SleepTime={_vbeeConfig.SleepTime}, Callback={_vbeeConfig.CallbackUrl}");
             try
@@ -105,7 +106,24 @@ namespace SRT2Speech.AppWindow.Views
             }
         }
 
-        private async Task StartT2S(List<SubtitleEntry> texts)
+        private HttpRequestMessage GetVbeeRq(string text)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, _vbeeConfig.Url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _vbeeConfig.Token);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var body = new
+            {
+                voice_code = _vbeeConfig.VoiceCode,
+                speed_rate = _vbeeConfig.SpeedRate,
+                input_text = text,
+                app_id = _vbeeConfig.AppId,
+                callback_url = _vbeeConfig.CallbackUrl
+            };
+            request.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+            return request;
+        }
+
+        private async Task StartT2S(List<SubtitleItem> texts)
         {
             string directoryPath = "Files/Vbee";
             if (!Directory.Exists(directoryPath))
@@ -124,30 +142,25 @@ namespace SRT2Speech.AppWindow.Views
                     {
                         var tasks = item.Select(async (f, index) =>
                         {
-                            var request = new HttpRequestMessage(HttpMethod.Post, _vbeeConfig.Url);
-                            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _vbeeConfig.Token);
-                            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                            var body = new
+                            var response = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await _httpClient.SendAsync(GetVbeeRq(f.Line)), (res) =>
                             {
-                                voice_code = _vbeeConfig.VoiceCode,
-                                speed_rate = _vbeeConfig.SpeedRate,
-                                input_text = f.Text,
-                                app_id = _vbeeConfig.AppId,
-                                callback_url = _vbeeConfig.CallbackUrl
-                            };
-                            request.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-                            var response = await _httpClient.SendAsync(request);
+                                if (!res.IsSuccessStatusCode)
+                                {
+                                    WriteLog($"Call {f.Index}.mp3 lỗi {res.ReasonPhrase}");
+                                }
+                                return res.IsSuccessStatusCode;
+                            }, maxRetries: 3);
                             _trackError.AddOrUpdate(f.Index.ToString(), f, (_, _) => f);
                             if (response.IsSuccessStatusCode)
                             {
                                 var responseContent = await response.Content.ReadAsStringAsync();
                                 string requestId = JObject.Parse(responseContent).GetSafeValue<dynamic>("result").request_id;
-                                _trackError.Remove(f.Index.ToString(), out SubtitleEntry? _);
+                                _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
                                 _trackError.AddOrUpdate(requestId, f, (_, _) => f);
                                 _ = Task.Run(async () =>
                                 {
-                                    await Task.Delay(TimeSpan.FromSeconds(3));
-                                    var dowload = await RetryWithJitterAndPolly1.ExecuteWithRetryAndJitterAsync(async () => await _httpClient.SendAsync(GetRqMessage(requestId)), (res) =>
+                                    await Task.Delay(TimeSpan.FromSeconds(2));
+                                    var dowload = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await _httpClient.SendAsync(GetRqMessage(requestId)), (res) =>
                                     {
                                         bool success = res.IsSuccessStatusCode;
                                         if (success)
@@ -167,12 +180,10 @@ namespace SRT2Speech.AppWindow.Views
                                     {
                                         await stream.CopyToAsync(fileStream);
                                     }
-                                    _trackError.Remove(requestId, out SubtitleEntry? _);
+                                    _trackError.Remove(requestId, out SubtitleItem? _);
                                     WriteLog($"[DOWLOADED] Dowload thành công {f.Index}.mp3, link = {audioLink}");
 
                                 });
-                                f.RequestId = requestId;
-
                                 WriteLog($"[SUCCESS] Gửi request - Callback: {_vbeeConfig.CallbackUrl} - {response.StatusCode} - {responseContent}");
                             }
                             else
@@ -213,7 +224,10 @@ namespace SRT2Speech.AppWindow.Views
                 return;
             }
             WriteLog("Begin extract text from file.");
-            var texts = SRTUtility.ParseSubtitleString(fileInputContent);
+            var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
+            using var fileStream = File.OpenRead(txtFile.Text);
+            var texts = parser.ParseStream(fileStream, Encoding.UTF8);
+
             WriteLog("Extract text from file done.");
             WriteLog("Begin dowload...");
             _ = StartT2S(texts);
@@ -246,7 +260,9 @@ namespace SRT2Speech.AppWindow.Views
 
             if (result == MessageBoxResult.Yes)
             {
-                _ = StartT2S(new List<SubtitleEntry>(_trackError.Values));
+                var errors = new List<SubtitleItem>(_trackError.Values);
+                _trackError.Clear();
+                _ = StartT2S(errors);
             }
         }
     }

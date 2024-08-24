@@ -13,18 +13,13 @@ namespace SRT2Speech.AppAPI.Modules
     {
         private readonly IDowloadService _dowloadService;
         private readonly IHubContext<MessageHub> _hubContext;
-        private readonly IMemCacheService _memCacheService;
-        private readonly IMicrosoftCacheService _microsoftCacheService;
 
-        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext, IMicrosoftCacheService microsoftCacheService) : base("/api/vbee")
+        public VbeeModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext) : base("/api/vbee")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
             _hubContext = hubContext;
-
-            _microsoftCacheService = microsoftCacheService;
-
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)

@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
 using SRT2Speech.AppAPI.Services.DowloadService;
-using SRT2Speech.Cache;
 using SRT2Speech.Core.Extensions;
 using SRT2Speech.Core.Models;
 using SRT2Speech.Socket.Methods;
@@ -13,17 +12,13 @@ namespace SRT2Speech.AppAPI.Modules
     public class FptModule : CarterModule
     {
         private readonly IDowloadService _dowloadService;
-        private readonly IMemCacheService _memCacheService;
         private readonly IHubContext<MessageHub> _hubContext;
-        private readonly IMicrosoftCacheService _microsoftCacheService;
-        public FptModule(IDowloadService dowloadService, IMemCacheService memCacheService, IHubContext<MessageHub> hubContext, IMicrosoftCacheService microsoftCacheService) : base("/api/fpt")
+        public FptModule(IDowloadService dowloadService, IHubContext<MessageHub> hubContext) : base("/api/fpt")
         {
             WithTags("Webhook");
             IncludeInOpenApi();
             _dowloadService = dowloadService;
-            _memCacheService = memCacheService;
             _hubContext = hubContext;
-            _microsoftCacheService = microsoftCacheService;
         }
 
         public override void AddRoutes(IEndpointRouteBuilder app)

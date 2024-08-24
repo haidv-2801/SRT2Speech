@@ -20,6 +20,7 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="40" />
@@ -56,6 +57,14 @@
                                 Content="Dowload MP3"
                                 Width="80"
                                 Click="Button_Dowload" />
+
+                        <Button Grid.Row="0"
+                                Grid.Column="4"
+                                x:Name="btnDowloadError"
+                                Margin="10,0,0,10"
+                                Content="Dowload MP3"
+                                Width="80"
+                                Click="Button_DowloadError" />
                     </Grid>
                     <Grid Margin="10"
                           Grid.IsSharedSizeScope="True">

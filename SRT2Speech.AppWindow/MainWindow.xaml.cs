@@ -6,12 +6,12 @@ using Newtonsoft.Json.Linq;
 using SRT2Speech.AppWindow.Models;
 using SRT2Speech.AppWindow.Services;
 using SRT2Speech.AppWindow.Views;
-using SRT2Speech.Cache;
 using SRT2Speech.Core.Extensions;
 using SRT2Speech.Core.Models;
 using SRT2Speech.Core.Utilitys;
 using SRT2Speech.Socket.Client;
 using SRT2Speech.Socket.Methods;
+using SubtitlesParser.Classes;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
@@ -37,21 +37,21 @@ namespace SRT2Speech.AppWindow
         FptConfig _fptConfig;
         SignalRConfig _signalR;
         MessageClient _messageClient;
-        ConcurrentDictionary<string, SubtitleEntry> _trackError;
+        ConcurrentDictionary<string, SubtitleItem> _trackError;
 
 
         public MainWindow()
         {
-            
+
             InitializeComponent();
             InitDefaultValue();
             InitContent();
         }
         private void InitDefaultValue()
         {
-            _trackError = new ConcurrentDictionary<string, SubtitleEntry>();
+            _trackError = new ConcurrentDictionary<string, SubtitleItem>();
             _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
-            _signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
+            //_signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
             WriteLog($"Thông tin cấu hình Vbee Thread={_fptConfig.MaxThreads}, SleepTime={_fptConfig.SleepTime}, Callback={_fptConfig.CallbackUrl}");
             //try
             //{
@@ -159,10 +159,34 @@ namespace SRT2Speech.AppWindow
                 return;
             }
             WriteLog("Bắt đầu đọc file SRT.");
-            var texts = SRTUtility.ParseSubtitleString(fileInputContent);
+            var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
+            using var fileStream = File.OpenRead(txtFile.Text);
+            var texts = parser.ParseStream(fileStream, Encoding.UTF8);
             WriteLog($"Đọc xong file SRT. Tổng {texts.Count} file mp3 cần dowload.");
             WriteLog("Begin dowload...");
             Task.Run(async () => await StartT2S(texts));
+        }
+
+        private void Button_DowloadError(object sender, RoutedEventArgs e)
+        {
+            if (!_trackError.Any())
+            {
+                MessageBox.Show("Không có bản ghi lỗi nào!!");
+                return;
+            }
+
+            MessageBoxResult result = MessageBox.Show(
+                $"Còn {_trackError.Count} bản ghi chưa được tải về. Dowload tiếp?",
+                "Tải bản ghi lỗi",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                var errs = new List<SubtitleItem>(_trackError.Values);
+                _trackError.Clear();
+                _ = StartT2S(errs);
+            }
         }
 
         public HttpRequestMessage GetRqMessage(string url)
@@ -172,7 +196,7 @@ namespace SRT2Speech.AppWindow
             return rqGet;
         }
 
-        private async Task StartT2S(List<SubtitleEntry> texts)
+        private async Task StartT2S(List<SubtitleItem> texts)
         {
             string directoryPath = "Files/FPT";
             if (!Directory.Exists(directoryPath))
@@ -197,7 +221,7 @@ namespace SRT2Speech.AppWindow
                     {
                         var tasks = item.Select(async (f, index) =>
                         {
-                            var content = new StringContent(f.Text, Encoding.UTF8, "application/json");
+                            var content = new StringContent(f.Line, Encoding.UTF8, "application/json");
 
                             var response = await httpClient.PostAsync(uri, content);
                             if (response.IsSuccessStatusCode)
@@ -208,29 +232,27 @@ namespace SRT2Speech.AppWindow
                                 string link = responseObject.GetSafeValue<string>("async");
                                 WriteLog($"Gọi sang FPT thành công: {responseContent}");
 
-                                _trackError.Remove(f.Index.ToString(), out SubtitleEntry? _);
+                                _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
                                 _trackError.AddOrUpdate(requestId, f, (_, _) => f);
-                                
+
                                 _ = Task.Run(async () =>
                                 {
                                     await Task.Delay(3000);
-                                    var dowload = await RetryWithJitterAndPolly1.ExecuteWithRetryAndJitterAsync(async () => await httpClient.SendAsync(GetRqMessage(link)), (res) =>
+                                    var dowload = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await httpClient.SendAsync(GetRqMessage(link)), (res) =>
                                     {
-                                        WriteLog($"[RETRY] Đang cố dowload {f.Index}.mp3 từ FPT...");
                                         return res.IsSuccessStatusCode && res.StatusCode != System.Net.HttpStatusCode.NotFound;
                                     });
-                                  
+
                                     string filePath = Path.Combine(location, $"Files/FPT/{f.Index}.mp3");
                                     var stream = await dowload.Content.ReadAsStreamAsync();
                                     using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                                     {
                                         await stream.CopyToAsync(fileStream);
                                     }
-                                    _trackError.Remove(requestId, out SubtitleEntry? _);
+                                    _trackError.Remove(requestId, out SubtitleItem? _);
                                     WriteLog($"[DOWLOADED] Dowload thành công {f.Index}.mp3, link = {link}");
 
                                 });
-                                f.RequestId = requestId;
                             }
                             else
                             {

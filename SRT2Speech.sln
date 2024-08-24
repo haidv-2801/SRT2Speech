@@ -9,13 +9,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SRT2Speech.AppAPI", "SRT2Sp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SRT2Speech.Socket", "SRT2Speech.Socket\SRT2Speech.Socket.csproj", "{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SRT2Speech.Database", "SRT2Speech.Database\SRT2Speech.Database.csproj", "{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SRT2Speech.Core", "SRT2Speech.Core\SRT2Speech.Core.csproj", "{2F917EE9-4565-45B4-BD34-94A1BACC958B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SRT2Speech.Cache", "SRT2Speech.Cache\SRT2Speech.Cache.csproj", "{FD2512A9-1258-4D60-B090-99AD895D400B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SRT2Speech.StartApp", "SRT2Speech.StartApp\SRT2Speech.StartApp.csproj", "{35EF036F-1263-4FEB-AEED-52DA66853417}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.StartApp", "SRT2Speech.StartApp\SRT2Speech.StartApp.csproj", "{35EF036F-1263-4FEB-AEED-52DA66853417}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubtitlesParser", "..\SubtitlesParser\SubtitlesParser\SubtitlesParser.csproj", "{7A58C87F-7D53-4962-A656-F553C2EF0821}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,22 +33,18 @@ Global
 		{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9E4A5CF-28AF-4CCD-96C8-C7CCBA5F753D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6F8BCE53-DA2E-4966-B58A-C3889DBB3A8E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2F917EE9-4565-45B4-BD34-94A1BACC958B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FD2512A9-1258-4D60-B090-99AD895D400B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FD2512A9-1258-4D60-B090-99AD895D400B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FD2512A9-1258-4D60-B090-99AD895D400B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FD2512A9-1258-4D60-B090-99AD895D400B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{35EF036F-1263-4FEB-AEED-52DA66853417}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{35EF036F-1263-4FEB-AEED-52DA66853417}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{35EF036F-1263-4FEB-AEED-52DA66853417}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{35EF036F-1263-4FEB-AEED-52DA66853417}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A58C87F-7D53-4962-A656-F553C2EF0821}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A58C87F-7D53-4962-A656-F553C2EF0821}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A58C87F-7D53-4962-A656-F553C2EF0821}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A58C87F-7D53-4962-A656-F553C2EF0821}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

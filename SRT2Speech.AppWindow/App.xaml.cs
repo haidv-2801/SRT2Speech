@@ -1,7 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SRT2Speech.Cache;
 using System.IO;
 using System.Windows;
 
@@ -23,9 +21,6 @@ namespace SRT2Speech.AppWindow
 
         private void ConfigureServices(IServiceCollection services)
         {
-            services.AddSingleton<IMemoryCache>(serviceProvider => new MemoryCache(new MemoryCacheOptions()));
-            services.AddSingleton<IMicrosoftCacheService, MicrosoftCacheService>();
-            
         }
     }
 }   
