@@ -4,8 +4,6 @@ using SRT2Speech.AppWindow.Models;
 using SRT2Speech.AppWindow.Services;
 using SRT2Speech.Core.Extensions;
 using SRT2Speech.Core.Utilitys;
-using SRT2Speech.Socket.Client;
-using SRT2Speech.Socket.Methods;
 using SubtitlesParser.Classes;
 using System.IO;
 using System.Net.Http;
@@ -21,9 +19,8 @@ namespace SRT2Speech.AppWindow.Views
     public partial class EnglishVoiceControl : UserControl
     {
         string fileInputContent;
+        bool isValidKey = false;
         GoogleConfig _googleConfig;
-        //SignalRConfig _signalR;
-        MessageClient _messageClient;
 
         public EnglishVoiceControl()
         {
@@ -33,17 +30,46 @@ namespace SRT2Speech.AppWindow.Views
         }
         private void InitDefaultValue()
         {
-            //_signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
-            _googleConfig = YamlUtility.Deserialize<GoogleConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "GoogleConfig.yaml")));
-            //_messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG_EN_VOICE);
-            //_ = _messageClient.CreateConncetion(async (object message) =>
-            //{
-            //    string msg = $"{message}";
-            //    WriteLog(msg);
-            //});
+            ReadKey();
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
+            _googleConfig = YamlUtility.Deserialize<GoogleConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "GoogleConfig.yaml")));
             WriteLog($"Thông tin cấu hình Google {JsonConvert.SerializeObject(_googleConfig)}");
             fileInputContent = string.Empty;
-            //txtLog.AppendText("Logging...");
+        }
+
+        private bool ThrowKeyValid()
+        {
+            if (!isValidKey)
+            {
+                WriteLog($"Key app không hợp lệ!!!");
+            }
+
+            return isValidKey;
+        }
+
+        private void ReadKey()
+        {
+            try
+            {
+                string key = File.ReadAllText(System.IO.Path.Combine($@"{Directory.GetCurrentDirectory()}\Configs", "key.txt"));
+                string decrypt = AESEncryption.DecryptAES(key);
+                string date = decrypt.Split("__")[1];
+                string mac = decrypt.Split("__")[0];
+                if (string.IsNullOrEmpty(key))
+                {
+                    isValidKey = false;
+                }
+                isValidKey = EncodeUtility.IsValidKey(key);
+                WriteLog($"Thông tin key: {key}, Valid key = {isValidKey}, Date = {date}, mac = {mac}");
+            }
+            catch (Exception ex)
+            {
+                isValidKey = false;
+                WriteLog(ex.Message);
+            }
         }
 
         private void InitContent()
@@ -58,6 +84,10 @@ namespace SRT2Speech.AppWindow.Views
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Text files (*.srt)|*.srt|All files (*.*)|*.*";
             if (openFileDialog.ShowDialog() == true)
@@ -96,6 +126,10 @@ namespace SRT2Speech.AppWindow.Views
 
         private void Button_Dowload(object sender, RoutedEventArgs e)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             if (string.IsNullOrEmpty(fileInputContent))
             {
                 MessageBox.Show("Please choose file.");
@@ -122,7 +156,7 @@ namespace SRT2Speech.AppWindow.Views
                         {
                             var tasks = item.Select(async f =>
                             {
-                               
+
 
                                 var response = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await client.PostAsync(url, GetContent(f.Line)), (res) =>
                                 {

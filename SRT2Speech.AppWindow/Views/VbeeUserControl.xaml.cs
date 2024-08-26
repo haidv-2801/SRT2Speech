@@ -1,6 +1,5 @@
 ﻿using AutoApp.Utility;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -9,9 +8,6 @@ using SRT2Speech.AppWindow.Services;
 using SRT2Speech.Core.Extensions;
 using SRT2Speech.Core.Models;
 using SRT2Speech.Core.Utilitys;
-using SRT2Speech.Socket.Client;
-using SRT2Speech.Socket.Methods;
-using SRT2Speech.Socket.Models;
 using SubtitlesParser.Classes;
 using System.Collections.Concurrent;
 using System.IO;
@@ -32,9 +28,9 @@ namespace SRT2Speech.AppWindow.Views
     {
         string fileInputContent;
         string localtion = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
+        bool isValidKey = false;
         VbeeConfig _vbeeConfig;
         SignalRConfig _signalR;
-        MessageClient _messageClient;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
         private static readonly HttpClient _httpClient = new HttpClient();
 
@@ -47,33 +43,48 @@ namespace SRT2Speech.AppWindow.Views
 
         private void InitDefaultValue()
         {
+            ReadKey();
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();
-            //_signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
-            _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
-            WriteLog($"Thông tin cấu hình Vbee Thread={_vbeeConfig.MaxThreads}, SleepTime={_vbeeConfig.SleepTime}, Callback={_vbeeConfig.CallbackUrl}");
+            _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ConfigVbee.yaml")));
+            WriteLog($"Thông tin cấu hình Vbee {JsonConvert.SerializeObject(_vbeeConfig)}");
+            btnDowloadError.IsEnabled = false;
+            fileInputContent = string.Empty;
+        }
+
+        private bool ThrowKeyValid()
+        {
+            if (!isValidKey)
+            {
+                WriteLog($"Key app không hợp lệ!!!");
+            }
+
+            return isValidKey;
+        }
+
+        private void ReadKey()
+        {
             try
             {
-                //_messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG_VBEE);
-                //_ = _messageClient.CreateConncetion((SignalItem item) =>
-                //{
-                //    var data = JObject.Parse(item.Data.ToString()!);
-                //    bool success = data.GetSafeValue<bool>("success");
-                //    string message = data.GetSafeValue<string>("message");
-                //    if (success)
-                //    {
-                //        _trackError.Remove(item.Id, out SubtitleEntry? _);
-                //    }
-                //    WriteLog($"{message}");
-                //});
+                string key = File.ReadAllText(System.IO.Path.Combine($@"{Directory.GetCurrentDirectory()}\Configs", "key.txt"));
+                string decrypt = AESEncryption.DecryptAES(key);
+                string date = decrypt.Split("__")[1];
+                string mac = decrypt.Split("__")[0];
+                if (string.IsNullOrEmpty(key))
+                {
+                    isValidKey = false;
+                }
+                isValidKey = EncodeUtility.IsValidKey(key);
+                WriteLog($"Thông tin key: {key}, Valid key = {isValidKey}, Date = {date}, mac = {mac}");
             }
             catch (Exception ex)
             {
-
-                WriteLog($"Lỗi connect {ex.Message}");
+                isValidKey = false;
+                WriteLog(ex.Message);
             }
-
-            btnDowloadError.IsEnabled = false;
-            fileInputContent = string.Empty;
         }
 
         private void InitContent()
@@ -88,6 +99,10 @@ namespace SRT2Speech.AppWindow.Views
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Text files (*.srt)|*.srt|All files (*.*)|*.*";
             if (openFileDialog.ShowDialog() == true)
@@ -125,12 +140,21 @@ namespace SRT2Speech.AppWindow.Views
 
         private async Task StartT2S(List<SubtitleItem> texts)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             string directoryPath = "Files/Vbee";
             if (!Directory.Exists(directoryPath))
             {
                 Directory.CreateDirectory(directoryPath);
             }
             WriteLog($"Tổng số bản ghi mp3 cần được dowload là {texts.Count}");
+            this.Dispatcher.Invoke(new Action(() =>
+            {
+                this.btnDowloadError.IsEnabled = false;
+                this.btnDowload.IsEnabled = false;
+            }));
             _trackError.Clear();
             await Task.Run(async () =>
             {
@@ -155,8 +179,6 @@ namespace SRT2Speech.AppWindow.Views
                             {
                                 var responseContent = await response.Content.ReadAsStringAsync();
                                 string requestId = JObject.Parse(responseContent).GetSafeValue<dynamic>("result").request_id;
-                                _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
-                                _trackError.AddOrUpdate(requestId, f, (_, _) => f);
                                 _ = Task.Run(async () =>
                                 {
                                     await Task.Delay(TimeSpan.FromSeconds(2));
@@ -180,7 +202,7 @@ namespace SRT2Speech.AppWindow.Views
                                     {
                                         await stream.CopyToAsync(fileStream);
                                     }
-                                    _trackError.Remove(requestId, out SubtitleItem? _);
+                                    _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
                                     WriteLog($"[DOWLOADED] Dowload thành công {f.Index}.mp3, link = {audioLink}");
 
                                 });
@@ -195,13 +217,21 @@ namespace SRT2Speech.AppWindow.Views
                         WriteLog($"Bắt đầu nghỉ {_vbeeConfig.SleepTime} giây");
                         await Task.Delay(TimeSpan.FromSeconds(_vbeeConfig.SleepTime));
                     }
+                    if (_trackError.Any()) WriteLog($"Đã dowload xong còn {_trackError.Count} bản ghi chưa được dowload");
+                    else WriteLog($"Đã dowload xong {texts.Count} bản ghi");
                     this.Dispatcher.Invoke(new Action(() =>
                     {
                         this.btnDowloadError.IsEnabled = true;
+                        this.btnDowload.IsEnabled = true;
                     }));
                 }
                 catch (Exception ex)
                 {
+                    this.Dispatcher.Invoke(new Action(() =>
+                    {
+                        this.btnDowloadError.IsEnabled = true;
+                        this.btnDowload.IsEnabled = true;
+                    }));
                     MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     WriteLog($"Xuất hiện lỗi gọi sang Vbee {ex.Message}");
                 }
@@ -218,6 +248,10 @@ namespace SRT2Speech.AppWindow.Views
 
         private void Button_Dowload(object sender, RoutedEventArgs e)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             if (string.IsNullOrEmpty(fileInputContent))
             {
                 MessageBox.Show("Please choose file.");
@@ -246,6 +280,10 @@ namespace SRT2Speech.AppWindow.Views
 
         private void Button_DowloadError(object sender, RoutedEventArgs e)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             if (!_trackError.Any())
             {
                 MessageBox.Show("Không có bản ghi lỗi nào!!");
@@ -260,9 +298,21 @@ namespace SRT2Speech.AppWindow.Views
 
             if (result == MessageBoxResult.Yes)
             {
-                var errors = new List<SubtitleItem>(_trackError.Values);
+                var errIndexs = new HashSet<string>(_trackError.Keys);
                 _trackError.Clear();
-                _ = StartT2S(errors);
+
+                var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
+                using var fileStream = File.OpenRead(txtFile.Text);
+                var texts = parser.ParseStream(fileStream, Encoding.UTF8);
+                texts = texts.Where(f => errIndexs.Contains(f.Index.ToString())).ToList();
+
+                if (!texts.Any())
+                {
+                    MessageBox.Show("Không có bản ghi lỗi nào!!");
+                    return;
+                }
+
+                _ = StartT2S(texts);
             }
         }
     }

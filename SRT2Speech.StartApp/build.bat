@@ -1,1 +1,0 @@
-dotnet publish -c Release -o ../Production/ReleaseStartApp --runtime win-x64 --self-contained true

@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SRT2Speech.Core\SRT2Speech.Core.csproj" />
-    <ProjectReference Include="..\SRT2Speech.Socket\SRT2Speech.Socket.csproj" />
   </ItemGroup>
 
 </Project>

@@ -62,8 +62,8 @@
                                 Grid.Column="4"
                                 x:Name="btnDowloadError"
                                 Margin="10,0,0,10"
-                                Content="Dowload MP3"
-                                Width="80"
+                                Content="Dowload MP3 Error"
+                                Width="120"
                                 Click="Button_DowloadError" />
                     </Grid>
                     <Grid Margin="10"

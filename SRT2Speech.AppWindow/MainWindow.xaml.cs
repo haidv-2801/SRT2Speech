@@ -9,8 +9,6 @@ using SRT2Speech.AppWindow.Views;
 using SRT2Speech.Core.Extensions;
 using SRT2Speech.Core.Models;
 using SRT2Speech.Core.Utilitys;
-using SRT2Speech.Socket.Client;
-using SRT2Speech.Socket.Methods;
 using SubtitlesParser.Classes;
 using System.Collections.Concurrent;
 using System.IO;
@@ -18,11 +16,13 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Xml.Linq;
 using static System.Net.Mime.MediaTypeNames;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SRT2Speech.AppWindow
 {
@@ -34,41 +34,59 @@ namespace SRT2Speech.AppWindow
         string fileInputContent;
         string nameFileInput;
         string location = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
+        bool isValidKey = false;
         FptConfig _fptConfig;
-        SignalRConfig _signalR;
-        MessageClient _messageClient;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
-
-
         public MainWindow()
         {
-
             InitializeComponent();
             InitDefaultValue();
             InitContent();
         }
         private void InitDefaultValue()
         {
+            ReadKey();
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
+            btnDowloadError.IsEnabled = false;  
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();
-            _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigFpt.yaml")));
-            //_signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
-            WriteLog($"Thông tin cấu hình Vbee Thread={_fptConfig.MaxThreads}, SleepTime={_fptConfig.SleepTime}, Callback={_fptConfig.CallbackUrl}");
-            //try
-            //{
-            //    _messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG);
-            //    _ = _messageClient.CreateConncetion(async (object message) =>
-            //    {
-            //        string msg = $"{message}";
-            //        WriteLog(msg);
-            //    });
-            //}
-            //catch (Exception ex)
-            //{
-
-            //    WriteLog($"Lỗi connect {ex.Message}");
-            //}
-
+            _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ConfigFpt.yaml")));
+            WriteLog($"Thông tin cấu hình {JsonConvert.SerializeObject(_fptConfig)}");
             fileInputContent = string.Empty;
+        }
+
+        private bool ThrowKeyValid()
+        {
+            if (!isValidKey)
+            {
+                WriteLog($"Key app không hợp lệ!!!");
+            }
+
+            return isValidKey;
+        }
+
+        private void ReadKey()
+        {
+            try
+            {
+                string key = File.ReadAllText(System.IO.Path.Combine($@"{Directory.GetCurrentDirectory()}\Configs", "key.txt"));
+                string decrypt = AESEncryption.DecryptAES(key);
+                string date = decrypt.Split("__")[1];
+                string mac = decrypt.Split("__")[0];
+                if (string.IsNullOrEmpty(key))
+                {
+                    isValidKey = false;
+                }
+                isValidKey = EncodeUtility.IsValidKey(key);
+                WriteLog($"Thông tin key: {key}, Valid key = {isValidKey}, Date = {date}, mac = {mac}");
+            }
+            catch (Exception ex)
+            {
+                isValidKey = false;
+                WriteLog(ex.Message);
+            }
         }
 
         private void InitContent()
@@ -92,11 +110,11 @@ namespace SRT2Speech.AppWindow
             newTab1.Content = enControl;
             tabControl.Items.Add(newTab1);
 
-            MediaProccessControl mediaControl = new MediaProccessControl();
-            TabItem newTab2 = new TabItem();
-            newTab2.Header = "Media";
-            newTab2.Content = mediaControl;
-            tabControl.Items.Add(newTab2);
+            //MediaProccessControl mediaControl = new MediaProccessControl();
+            //TabItem newTab2 = new TabItem();
+            //newTab2.Header = "Media";
+            //newTab2.Content = mediaControl;
+            //tabControl.Items.Add(newTab2);
         }
 
         private void FullWidthLog()
@@ -130,6 +148,10 @@ namespace SRT2Speech.AppWindow
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            if(!ThrowKeyValid())
+            {
+                return;
+            }
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Text files (*.srt)|*.srt|All files (*.*)|*.*";
             if (openFileDialog.ShowDialog() == true)
@@ -153,6 +175,10 @@ namespace SRT2Speech.AppWindow
 
         private void Button_Dowload(object sender, RoutedEventArgs e)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             if (string.IsNullOrEmpty(fileInputContent))
             {
                 MessageBox.Show("Please choose file.");
@@ -169,6 +195,10 @@ namespace SRT2Speech.AppWindow
 
         private void Button_DowloadError(object sender, RoutedEventArgs e)
         {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
             if (!_trackError.Any())
             {
                 MessageBox.Show("Không có bản ghi lỗi nào!!");
@@ -183,9 +213,21 @@ namespace SRT2Speech.AppWindow
 
             if (result == MessageBoxResult.Yes)
             {
-                var errs = new List<SubtitleItem>(_trackError.Values);
+                var errIndexs = new HashSet<string>(_trackError.Keys);                
                 _trackError.Clear();
-                _ = StartT2S(errs);
+
+                var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
+                using var fileStream = File.OpenRead(txtFile.Text);
+                var texts = parser.ParseStream(fileStream, Encoding.UTF8);
+                texts = texts.Where(f => errIndexs.Contains(f.Index.ToString())).ToList();
+
+                if (!texts.Any())
+                {
+                    MessageBox.Show("Không có bản ghi lỗi nào!!");
+                    return;
+                }
+
+                _ = StartT2S(texts);
             }
         }
 
@@ -205,11 +247,16 @@ namespace SRT2Speech.AppWindow
             }
             try
             {
+                this.Dispatcher.Invoke(() =>
+                {
+                    btnDowloadError.IsEnabled = false;
+                    btnDowload.IsEnabled = false;
+                });
                 using (var httpClient = new HttpClient())
                 {
                     var uri = new Uri(_fptConfig.Url);
                     httpClient.DefaultRequestHeaders.Add("api-key", _fptConfig.ApiKey);
-                    httpClient.DefaultRequestHeaders.Add("speed", "");
+                    httpClient.DefaultRequestHeaders.Add("speed", string.IsNullOrEmpty(_fptConfig.Speed) ? "" : _fptConfig.Speed);
                     httpClient.DefaultRequestHeaders.Add("voice", _fptConfig.Voice);
                     httpClient.DefaultRequestHeaders.Add("callback_url", _fptConfig.CallbackUrl);
                     httpClient.DefaultRequestHeaders
@@ -224,6 +271,7 @@ namespace SRT2Speech.AppWindow
                             var content = new StringContent(f.Line, Encoding.UTF8, "application/json");
 
                             var response = await httpClient.PostAsync(uri, content);
+                            _trackError.AddOrUpdate(f.Index.ToString(), f, (_, _) => f);
                             if (response.IsSuccessStatusCode)
                             {
                                 var responseContent = await response.Content.ReadAsStringAsync();
@@ -231,9 +279,6 @@ namespace SRT2Speech.AppWindow
                                 string requestId = responseObject.GetSafeValue<string>("request_id");
                                 string link = responseObject.GetSafeValue<string>("async");
                                 WriteLog($"Gọi sang FPT thành công: {responseContent}");
-
-                                _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
-                                _trackError.AddOrUpdate(requestId, f, (_, _) => f);
 
                                 _ = Task.Run(async () =>
                                 {
@@ -249,14 +294,14 @@ namespace SRT2Speech.AppWindow
                                     {
                                         await stream.CopyToAsync(fileStream);
                                     }
-                                    _trackError.Remove(requestId, out SubtitleItem? _);
+                                    _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
                                     WriteLog($"[DOWLOADED] Dowload thành công {f.Index}.mp3, link = {link}");
-
                                 });
                             }
                             else
                             {
-                                WriteLog($"Lỗi gọi sang Fpt: {response.StatusCode} - {response.ReasonPhrase}");
+                                string c = await response.Content.ReadAsStringAsync();
+                                WriteLog($"Lỗi gọi sang Fpt: {response.StatusCode} - {response.ReasonPhrase} - {c}");
                             }
                         });
                         await Task.WhenAll(tasks);
@@ -264,9 +309,21 @@ namespace SRT2Speech.AppWindow
                         await Task.Delay(TimeSpan.FromSeconds(_fptConfig.SleepTime));
                     }
                 }
+                if (_trackError.Any()) WriteLog($"Đã dowload xong còn {_trackError.Count} bản ghi chưa được dowload");
+                else WriteLog($"Đã dowload xong {texts.Count} bản ghi");
+                this.Dispatcher.Invoke(() =>
+                {
+                    btnDowloadError.IsEnabled = true;
+                    btnDowload.IsEnabled = true;
+                });
             }
             catch (Exception ex)
             {
+                this.Dispatcher.Invoke(() =>
+                {
+                    btnDowloadError.IsEnabled = true;
+                    btnDowload.IsEnabled = true;
+                });
                 // Hiển thị MessageBox với thông tin lỗi
                 MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 WriteLog($"Xuất hiện lỗi gọi sang FPT, có thể do tài khoản của bạn đã hết dung lượng, nếu chưa hết hãy thử giảm số luồng đồng thời xuống");

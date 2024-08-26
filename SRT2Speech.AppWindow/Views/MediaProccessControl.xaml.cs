@@ -2,7 +2,6 @@
 using SRT2Speech.AppWindow.Models;
 using SRT2Speech.Core.Audio;
 using SRT2Speech.Core.Utilitys;
-using SRT2Speech.Socket.Client;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -18,7 +17,6 @@ namespace SRT2Speech.AppWindow.Views
         string fileInputContent;
         VbeeConfig _vbeeConfig;
         SignalRConfig _signalR;
-        MessageClient _messageClient;
         string outFolder;
 
         public MediaProccessControl()
@@ -30,17 +28,8 @@ namespace SRT2Speech.AppWindow.Views
 
         private void InitDefaultValue()
         {
-            //_signalR = YamlUtility.Deserialize<SignalRConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SignalRConfig.yaml")));
             _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "ConfigVbee.yaml")));
-            //_messageClient = new MessageClient(_signalR.HubUrl, SignalMethods.SIGNAL_LOG_EN_VOICE);
-            //_ = _messageClient.CreateConncetion(async (object message) =>
-            //{
-            //    string msg = $"{message}";
-            //    WriteLog(msg);
-            //});
-
             fileInputContent = string.Empty;
-            txtLog.AppendText("Logging...");
         }
 
         private void InitContent()
@@ -131,16 +120,12 @@ namespace SRT2Speech.AppWindow.Views
                         StringBuilder logs = new StringBuilder();
                         await mProcessor.CompressAudioBySubtitles(msg =>
                         {
-                            this.Dispatcher.Invoke(() =>
-                            {
-                                //logs.AppendLine(msg);
-                                //if(logs.Length > 100)
-                                //{
-                                //    WriteLog(logs.ToString());
-                                //    logs.Clear();
-                                //}
-                            });
                         });
+
+                        await mProcessor.MergeAudio(msg =>
+                        {
+                        });
+                       
                         this.Dispatcher.Invoke(() =>
                         {
                             MessageBox.Show($"Merge file thành công {outFolder}!!");
@@ -154,6 +139,7 @@ namespace SRT2Speech.AppWindow.Views
                         {
                             MessageBox.Show($"Lỗi merge file {outFolder} {ex.Message}");
                             WriteLog($"Lỗi merge file {outFolder} {ex.Message}");
+                            btnMerge.IsEnabled = true;
                         });
                     }
 
@@ -163,6 +149,7 @@ namespace SRT2Speech.AppWindow.Views
             {
                 WriteLog(ex.Message);
                 MessageBox.Show(ex.Message);
+                btnMerge.IsEnabled = true;
             }
         }
 
