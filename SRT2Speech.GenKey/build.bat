@@ -1,0 +1,1 @@
+dotnet publish -c Release -o ../Production/Genkey --runtime win-x64 --self-contained true

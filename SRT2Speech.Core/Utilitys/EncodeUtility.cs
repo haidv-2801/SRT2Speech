@@ -58,11 +58,11 @@ namespace SRT2Speech.Core.Utilitys
                 if (licenseTime <= DateTime.Now)
                     return false;
 
-                //string m = GetMacAddress();
+                //string m = GetMacAddress().Replace("_", "").Replace("-", "");
 
-                //if (m.Equals(mac, StringComparison.OrdinalIgnoreCase))
+                //if (!m.Equals(mac, StringComparison.OrdinalIgnoreCase))
                 //{
-                //    return true;
+                //    return false;
                 //}
 
                 return true;

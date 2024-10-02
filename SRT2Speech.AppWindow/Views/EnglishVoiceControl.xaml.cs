@@ -5,6 +5,7 @@ using SRT2Speech.AppWindow.Services;
 using SRT2Speech.Core.Extensions;
 using SRT2Speech.Core.Utilitys;
 using SubtitlesParser.Classes;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -21,6 +22,7 @@ namespace SRT2Speech.AppWindow.Views
         string fileInputContent;
         bool isValidKey = false;
         GoogleConfig _googleConfig;
+        ConcurrentDictionary<string, SubtitleItem> _trackError;
 
         public EnglishVoiceControl()
         {
@@ -35,6 +37,7 @@ namespace SRT2Speech.AppWindow.Views
             {
                 return;
             }
+            _trackError = new ConcurrentDictionary<string, SubtitleItem>();
             _googleConfig = YamlUtility.Deserialize<GoogleConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "GoogleConfig.yaml")));
             WriteLog($"Thông tin cấu hình Google {JsonConvert.SerializeObject(_googleConfig)}");
             fileInputContent = string.Empty;
@@ -142,8 +145,31 @@ namespace SRT2Speech.AppWindow.Views
             WriteLog($"Tổng số bản ghi mp3 cần được dowload là {texts.Count}");
             WriteLog("Extract text from file done.");
             WriteLog("Begin dowload...");
+            _trackError.Clear();
 
-            Task.Run(async () =>
+            _ = StartT2S(texts);
+        }
+
+        private bool WriteLog(string message)
+        {
+            this.Dispatcher.Invoke(() =>
+            {
+                txtLog.AppendText($"{DateTime.Now} - {message}\n");
+                txtLog.ScrollToEnd();
+            });
+
+            return true;
+        }
+
+        private async Task StartT2S(List<SubtitleItem> texts)
+        {
+            if (texts.Any(f => f.Line == "##"))
+            {
+                WriteLog($"Tồn tại các dòng trống ở vị trí {string.Join(", ", texts.Where(f => f.Line == "##").Select(f => f.Index))}");
+                return;
+            }
+
+            await Task.Run(async () =>
             {
                 try
                 {
@@ -156,8 +182,7 @@ namespace SRT2Speech.AppWindow.Views
                         {
                             var tasks = item.Select(async f =>
                             {
-
-
+                                _trackError.AddOrUpdate(f.Index.ToString(), f, (_, _) => f);
                                 var response = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await client.PostAsync(url, GetContent(f.Line)), (res) =>
                                 {
                                     bool success = res.IsSuccessStatusCode;
@@ -165,6 +190,18 @@ namespace SRT2Speech.AppWindow.Views
                                     {
                                         var dowloadContent = res.Content.ReadAsStringAsync().Result;
                                         success = dowloadContent.Contains("audioContent");
+                                    }
+                                    else
+                                    {
+                                        string content = res.Content.ReadAsStringAsync().Result;
+                                        if (content.Contains("API_KEY_INVALID"))
+                                        {
+                                            WriteLog($"[ERROR] Đang dowload lại - Message: API key không hợp lệ");
+                                        }
+                                        else
+                                        {
+                                            WriteLog($"[ERROR] {content} Đang dowload lại Files/English/{f.Index}.mp3");
+                                        }
                                     }
                                     return success;
                                 });
@@ -176,6 +213,7 @@ namespace SRT2Speech.AppWindow.Views
                                     var audioContent = result.audioContent;
                                     byte[] audioBytes = Convert.FromBase64String((string)audioContent);
                                     await System.IO.File.WriteAllBytesAsync($"Files/English/{f.Index}.mp3", audioBytes);
+                                    _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
                                     WriteLog($"[DOWLOADED] Dowload thành công Files/English/{f.Index}.mp3");
                                 }
                                 else
@@ -199,15 +237,42 @@ namespace SRT2Speech.AppWindow.Views
             });
         }
 
-        private bool WriteLog(string message)
+        private void Button_DowloadError(object sender, RoutedEventArgs e)
         {
-            this.Dispatcher.Invoke(() =>
+            if (!ThrowKeyValid())
             {
-                txtLog.AppendText($"{DateTime.Now} - {message}\n");
-                txtLog.ScrollToEnd();
-            });
+                return;
+            }
+            if (!_trackError.Any())
+            {
+                MessageBox.Show("Không có bản ghi lỗi nào!!");
+                return;
+            }
 
-            return true;
+            MessageBoxResult result = MessageBox.Show(
+                $"Còn {_trackError.Count} bản ghi chưa được tải về. Dowload tiếp?",
+                "Tải bản ghi lỗi",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                var errIndexs = new HashSet<string>(_trackError.Keys);
+                _trackError.Clear();
+
+                var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
+                using var fileStream = File.OpenRead(txtFile.Text);
+                var texts = parser.ParseStream(fileStream, Encoding.UTF8);
+                texts = texts.Where(f => errIndexs.Contains(f.Index.ToString())).ToList();
+
+                if (!texts.Any())
+                {
+                    MessageBox.Show("Không có bản ghi lỗi nào!!");
+                    return;
+                }
+
+                _ = StartT2S(texts);
+            }
         }
     }
 }

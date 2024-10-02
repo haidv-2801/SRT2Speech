@@ -68,12 +68,39 @@ namespace SRT2Speech.GenKey
 
         static void Main(string[] args)
         {
-            string m = "F4-B5-20-27-D6-07";
-            m = m.ToLowerInvariant().Replace(":", "").Replace("-", "");
-            string plainText = $"{m}__{DateTime.Now.AddDays(4).ToString("dd/MM/yyyy hh:mm:ss tt")}";
-            string encrypt = AESEncryption.EncryptAES(plainText);
-            string decrypt = AESEncryption.DecryptAES("Q89K93NDRdvch2XP6dF4aFnW2qzLQcKVDnoLlCUeR6Wa35PJbey9vZ33SJnzCDtS");
-            Console.WriteLine($"encrypt = {encrypt}");
+            try
+            {
+                //string m = "0a0027000006";
+                Console.InputEncoding = Encoding.UTF8;
+                Console.OutputEncoding = Encoding.UTF8;
+                Console.WriteLine("Nhập MAC:");
+                string mac = Console.ReadLine()!;
+                mac = mac.ToLowerInvariant().Replace(":", "").Replace("-", "").Replace("_", "");
+
+                Console.WriteLine("Nhập số ngày:");
+                string day = Console.ReadLine()!;
+
+                string plainText = $"{mac}__{DateTime.Now.AddDays(int.Parse(day)).ToString("dd/MM/yyyy hh:mm:ss tt")}";
+                string encrypt = AESEncryption.EncryptAES(plainText);
+                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "key.txt");
+
+                // Write text to the file
+                using (StreamWriter writer = new StreamWriter(filePath))
+                {
+                    writer.WriteLine(encrypt);
+                }
+                Console.WriteLine($"Key {encrypt} đã được tạo vào file {filePath}");
+            }
+            catch (FormatException ex)
+            {
+                Console.WriteLine($"[ERROR] Số ngày phải nhập số");
+                Console.WriteLine("[ERROR]" + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Lỗi {ex.Message}");
+            }
+            Console.ReadLine();
         }
 
         public static string GetMacAddress()

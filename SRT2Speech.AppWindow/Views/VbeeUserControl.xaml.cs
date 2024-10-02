@@ -149,6 +149,13 @@ namespace SRT2Speech.AppWindow.Views
             {
                 Directory.CreateDirectory(directoryPath);
             }
+
+            if (texts.Any(f => f.Line == "##"))
+            {
+                WriteLog($"Tồn tại các dòng trống ở vị trí {string.Join(", ", texts.Where(f => f.Line == "##").Select(f => f.Index))}");
+                return;
+            }
+
             WriteLog($"Tổng số bản ghi mp3 cần được dowload là {texts.Count}");
             this.Dispatcher.Invoke(new Action(() =>
             {

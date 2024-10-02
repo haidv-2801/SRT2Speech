@@ -1,28 +1,21 @@
-﻿using AutoApp.Utility;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SRT2Speech.AppWindow.Models;
 using SRT2Speech.AppWindow.Services;
 using SRT2Speech.AppWindow.Views;
 using SRT2Speech.Core.Extensions;
-using SRT2Speech.Core.Models;
 using SRT2Speech.Core.Utilitys;
 using SubtitlesParser.Classes;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Xml.Linq;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SRT2Speech.AppWindow
 {
@@ -45,16 +38,47 @@ namespace SRT2Speech.AppWindow
         }
         private void InitDefaultValue()
         {
+
             ReadKey();
             if (!ThrowKeyValid())
             {
                 return;
             }
-            btnDowloadError.IsEnabled = false;  
+            CreateFolders();
+            btnDowloadError.IsEnabled = false;
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();
             _fptConfig = YamlUtility.Deserialize<FptConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ConfigFpt.yaml")));
             WriteLog($"Thông tin cấu hình {JsonConvert.SerializeObject(_fptConfig)}");
             fileInputContent = string.Empty;
+        }
+
+        private bool CreateFolders()
+        {
+            try
+            {
+                var curDirect = Directory.GetCurrentDirectory();
+                var fpt = Path.Combine(curDirect, "Files/FPT");
+                var vbee = Path.Combine(curDirect, "Files/Vbee");
+                var english = Path.Combine(curDirect, "Files/English");
+                if (!Directory.Exists(fpt))
+                {
+                    Directory.CreateDirectory(fpt);
+                }
+                if (!Directory.Exists(vbee))
+                {
+                    Directory.CreateDirectory(vbee);
+                }
+                if (!Directory.Exists(english))
+                {
+                    Directory.CreateDirectory(english);
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog(ex.Message);
+            }
+
+            return true;
         }
 
         private bool ThrowKeyValid()
@@ -110,6 +134,12 @@ namespace SRT2Speech.AppWindow
             newTab1.Content = enControl;
             tabControl.Items.Add(newTab1);
 
+            TranslateControl tranControl = new TranslateControl();
+            TabItem newTab2 = new TabItem();
+            newTab2.Header = "Translate SRT";
+            newTab2.Content = tranControl;
+            tabControl.Items.Add(newTab2);
+
             //MediaProccessControl mediaControl = new MediaProccessControl();
             //TabItem newTab2 = new TabItem();
             //newTab2.Header = "Media";
@@ -148,7 +178,7 @@ namespace SRT2Speech.AppWindow
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            if(!ThrowKeyValid())
+            if (!ThrowKeyValid())
             {
                 return;
             }
@@ -213,7 +243,7 @@ namespace SRT2Speech.AppWindow
 
             if (result == MessageBoxResult.Yes)
             {
-                var errIndexs = new HashSet<string>(_trackError.Keys);                
+                var errIndexs = new HashSet<string>(_trackError.Keys);
                 _trackError.Clear();
 
                 var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
@@ -247,6 +277,17 @@ namespace SRT2Speech.AppWindow
             }
             try
             {
+
+                if (texts.Any(f => f.Line == "##"))
+                {
+                    WriteLog($"Tồn tại các dòng trống ở vị trí {string.Join(", ", texts.Where(f => f.Line == "##").Select(f => f.Index))}");
+                    return;
+                }
+                if (texts.Any(f => f.Line.Length < 3))
+                {
+                    WriteLog($"Tồn tại các dòng nhỏ hơn 3 kí tự ở vị trí {string.Join(", ", texts.Where(f => f.Line.Length < 3).Select(f => f.Index))}");
+                    return;
+                }
                 this.Dispatcher.Invoke(() =>
                 {
                     btnDowloadError.IsEnabled = false;
@@ -269,7 +310,6 @@ namespace SRT2Speech.AppWindow
                         var tasks = item.Select(async (f, index) =>
                         {
                             var content = new StringContent(f.Line, Encoding.UTF8, "application/json");
-
                             var response = await httpClient.PostAsync(uri, content);
                             _trackError.AddOrUpdate(f.Index.ToString(), f, (_, _) => f);
                             if (response.IsSuccessStatusCode)
