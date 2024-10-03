@@ -14,5 +14,6 @@ namespace SRT2Speech.AppWindow.Models
         public int MaxThreads { get; set; }
         public int SleepTime { get; set; }
         public int MaxItems { get; set; } = 50;
+        public string Prompt { get; set; }
     }
 }

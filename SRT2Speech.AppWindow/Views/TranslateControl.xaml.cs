@@ -113,7 +113,7 @@ namespace SRT2Speech.AppWindow.Views
         {
             var requestBody = new
             {
-                contents = new { role = "user", parts = new object[] { new { text = $"{prompt}\n@@@{text}@@@" } } },
+                contents = new { role = "user", parts = new object[] { new { text = $"{prompt}. {_tranConfig.Prompt}\n@@@{text}@@@" } } },
             };
 
             var jsonContent = JsonConvert.SerializeObject(requestBody);
@@ -371,9 +371,9 @@ namespace SRT2Speech.AppWindow.Views
         {
             return content switch
             {
-                "To English" => "hãy dịch giúp tôi ngôn ngữ sau sang tiếng anh, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào",
-                "To Vietnamese" => "hãy dịch giúp tôi ngôn ngữ sau sang tiếng việt, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào",
-                _ => "hãy dịch giúp tôi ngôn ngữ sau sang tiếng việt, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào"
+                "To English" => "Hãy dịch giúp tôi ngôn ngữ sau sang tiếng anh, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào",
+                "To Vietnamese" => "Hãy dịch giúp tôi ngôn ngữ sau sang tiếng việt, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào",
+                _ => "Hãy dịch giúp tôi ngôn ngữ sau sang tiếng việt, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào"
             };
         }
     }
