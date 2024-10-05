@@ -37,7 +37,7 @@ namespace SRT2Speech.Core.Utilitys
         {
             try
             {
-                string[] formats = { "dd/MM/yyyy hh:mm:ss tt", "MM/dd/yyyy HH:mm:ss tt" };
+                string[] formats = { "dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy", "MMMM dd, yyyy" };
                 string decrypt = AESEncryption.DecryptAES(key);
                 string date = decrypt.Split("__")[1];
                 string mac = decrypt.Split("__")[0];

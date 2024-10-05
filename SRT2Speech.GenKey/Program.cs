@@ -80,7 +80,7 @@ namespace SRT2Speech.GenKey
                 Console.WriteLine("Nhập số ngày:");
                 string day = Console.ReadLine()!;
 
-                string plainText = $"{mac}__{DateTime.Now.AddDays(int.Parse(day)).ToString("dd/MM/yyyy hh:mm:ss tt")}";
+                string plainText = $"{mac}__{DateTime.Now.AddDays(int.Parse(day)).ToString("dd/MM/yyyy")}";
                 string encrypt = AESEncryption.EncryptAES(plainText);
                 string filePath = Path.Combine(Directory.GetCurrentDirectory(), "key.txt");
 

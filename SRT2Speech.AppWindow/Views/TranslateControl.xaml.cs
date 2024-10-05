@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Microsoft.Extensions.FileSystemGlobbing.Internal;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 using SRT2Speech.AppWindow.Models;
 using SRT2Speech.AppWindow.Services;
@@ -6,11 +7,13 @@ using SRT2Speech.AppWindow.ViewModels;
 using SRT2Speech.Core.Extensions;
 using SRT2Speech.Core.Utilitys;
 using SubtitlesParser.Classes;
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -105,6 +108,7 @@ namespace SRT2Speech.AppWindow.Views
             {
                 var folderName = folderDialog.FolderName;
                 outFolder = folderName;
+                txtFolderOut.Text = folderName;
                 WriteLog($"Thư mục xuất file dịch: {outFolder}");
             }
         }
@@ -113,6 +117,7 @@ namespace SRT2Speech.AppWindow.Views
         {
             var requestBody = new
             {
+                safetySettings = new object[] { new { category = 7, threshold = 4 } },
                 contents = new { role = "user", parts = new object[] { new { text = $"{prompt}. {_tranConfig.Prompt}\n@@@{text}@@@" } } },
             };
 
@@ -146,18 +151,6 @@ namespace SRT2Speech.AppWindow.Views
                 return;
             }
 
-
-            //MessageBoxResult result = MessageBox.Show(
-            //    $"Bạn có muốn xóa các file dịch trong thư mục đích?",
-            //    "Info",
-            //    MessageBoxButton.YesNo,
-            //    MessageBoxImage.Question);
-
-            //if (result == MessageBoxResult.Yes)
-            //{ 
-
-            //}
-
             _ = StartTranslate(texts);
         }
 
@@ -176,6 +169,29 @@ namespace SRT2Speech.AppWindow.Views
             return true;
         }
 
+        string ExtractNumber(string input)
+        {
+            string pattern = @"\d+";
+            Match match = Regex.Match(input, pattern);
+
+            if (match.Success)
+            {
+                return match.Value;
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+
+        bool ContainLetter(string input)
+        {
+            // Sử dụng Regex để kiểm tra xem chuỗi có ký tự không phải số hay không
+            string pattern = @"\D"; // Tìm bất kỳ ký tự nào không phải là số
+            bool containsNonNumeric = Regex.IsMatch(input, pattern);
+            return containsNonNumeric;
+        }
+
         private async Task StartTranslate(List<SubtitleItem> texts)
         {
             if (texts.Any(f => f.Line == "##"))
@@ -192,6 +208,8 @@ namespace SRT2Speech.AppWindow.Views
 
             await Task.Run(async () =>
             {
+                string pattern = @"(?<=\d+\.\s)(?=\d+\.\s)";
+                string filePath = "translated.srt";
                 try
                 {
                     string apiKey = _tranConfig.ApiKey;
@@ -203,7 +221,6 @@ namespace SRT2Speech.AppWindow.Views
 
                         foreach (var item in text)
                         {
-                            //_trackError.AddOrUpdate(f.Index.ToString(), f, (_, _) => f);
                             var response = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () =>
                             await client.PostAsync(url, GetContent(item, prompt)), (res) =>
                             {
@@ -237,26 +254,47 @@ namespace SRT2Speech.AppWindow.Views
                                         .GetString();
 
                                     res = res.Replace("@@@", "");
-                                    string filePath = "translated.srt";
                                     var resSplit = res.Split("\n").Select(f => f.Trim()).Where(f => !string.IsNullOrEmpty(f));
+                                    if (resSplit.Count() < _tranConfig.MaxItems)
+                                    {
+                                        res = Regex.Replace(res, @"(?<=\d+\.\s[^0-9]*?)(?=\d+\.)", "\n");
+                                        resSplit = res.Split("\n").Select(f => f.Trim()).Where(f => !string.IsNullOrEmpty(f));
+                                    }
+
                                     using (StreamWriter sw = new StreamWriter(Path.Combine(outFolder, filePath), true))
                                     {
                                         foreach (var line in resSplit)
                                         {
-                                            int index = int.Parse(line.Substring(0, line.IndexOf(".")).Replace(".", ""));
-                                            string t = line.Substring(line.IndexOf(".") + 1);
-                                            SubtitleItem fi = texts.Find(a => a.Index == index);
-
-                                            if (fi != null)
+                                            if (line.IndexOf(".") == -1)
                                             {
-                                                fi.Lines = new List<string>() { t.Trim() };
-
-                                                sw.WriteLine($"{fi.ToSRTString()}\n");
-
+                                                WriteLog($"[ERROR] Sử lý không thành công: {line}");
                                             }
+                                            else
+                                            {
+                                                string number = ExtractNumber(line.Substring(0, line.IndexOf(".")));
+                                                if (!int.TryParse(line.Substring(0, line.IndexOf(".")), out int _))
+                                                {
+                                                    WriteLog($"[ERROR] Sử lý không thành công: {line}");
+                                                }
+                                                if (string.IsNullOrEmpty(number))
+                                                {
+                                                    WriteLog($"[ERROR] Sử lý không thành công: {line}");
+                                                }
+                                                else
+                                                {
+                                                    int index = int.Parse(number);
+                                                    string t = line.Substring(line.IndexOf(".") + 1);
+                                                    SubtitleItem fi = texts.Find(a => a.Index == index);
 
-                                            _trackError.Remove(index.ToString(), out SubtitleItem? _);
-                                            WriteLog($"[SUCCESS] Dịch thành công, đã lưu file {index}");
+                                                    if (fi != null)
+                                                    {
+                                                        fi.Lines = new List<string>() { t.Trim() };
+                                                        sw.WriteLine($"{fi.ToSRTString()}\n");
+                                                    }
+
+                                                    WriteLog($"[SUCCESS] Dịch thành công, đã lưu file {index}");
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -284,43 +322,6 @@ namespace SRT2Speech.AppWindow.Views
             });
         }
 
-        private void Button_DowloadError(object sender, RoutedEventArgs e)
-        {
-            if (!ThrowKeyValid())
-            {
-                return;
-            }
-            if (!_trackError.Any())
-            {
-                MessageBox.Show("Không có bản ghi lỗi nào!!");
-                return;
-            }
-
-            MessageBoxResult result = MessageBox.Show(
-                $"Còn {_trackError.Count} bản ghi chưa được tải về. Dowload tiếp?",
-                "Tải bản ghi lỗi",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                var errIndexs = new HashSet<string>(_trackError.Keys);
-                _trackError.Clear();
-
-                var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
-                using var fileStream = File.OpenRead(txtFile.Text);
-                var texts = parser.ParseStream(fileStream, Encoding.UTF8);
-                texts = texts.Where(f => errIndexs.Contains(f.Index.ToString())).ToList();
-
-                if (!texts.Any())
-                {
-                    MessageBox.Show("Không có bản ghi lỗi nào!!");
-                    return;
-                }
-
-            }
-        }
-
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             if (!ThrowKeyValid())
@@ -332,6 +333,11 @@ namespace SRT2Speech.AppWindow.Views
             if (openFileDialog.ShowDialog() == true)
             {
                 txtFile.Text = openFileDialog.FileName;
+
+                outFolder = Path.GetDirectoryName(txtFile.Text)!;
+                txtFolderOut.Text = outFolder;
+                WriteLog($"Thư mục xuất file dịch: {outFolder}");
+
                 if (string.IsNullOrEmpty(txtFile.Text))
                 {
                     MessageBox.Show("File name empty.");
@@ -357,24 +363,17 @@ namespace SRT2Speech.AppWindow.Views
             }
         }
 
-        //private string GetPromptCombobox(string content)
-        //{
-        //    return content switch
-        //    {
-        //        "To English" => "You are a translator, let translate text bellow to English and don't give any redudant text",
-        //        "To Vietnamese" => "You are a translator, let translate text bellow to Vietnamese and don't give any redudant text",
-        //        _ => "You are a translator, let translate text bellow to Vietnamese and don't give any redudant text"
-        //    };
-        //}
-
         private string GetPromptCombobox(string content)
         {
-            return content switch
+            string common = "You are a translator, let translate bellow text to {0}. Only return the result.";
+            string prompt = content switch
             {
-                "To English" => "Hãy dịch giúp tôi ngôn ngữ sau sang tiếng anh, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào",
-                "To Vietnamese" => "Hãy dịch giúp tôi ngôn ngữ sau sang tiếng việt, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào",
-                _ => "Hãy dịch giúp tôi ngôn ngữ sau sang tiếng việt, tôi mong muốn chỉ nhận được kết quả dịch và không muốn thêm bất cứ text nào vào kết quả của tôi và hãy giữ giúp tôi 3 kí tự @@@ trong kết quả và không đưa ra bất cứ giải thích nào"
+                "To English" => "English",
+                "To Vietnamese" => "Vietnamese",
+                _ => "Vietnamese"
             };
+
+            return string.Format(common, prompt);
         }
     }
 }
