@@ -177,7 +177,8 @@ namespace SRT2Speech.AppWindow.Views
                             {
                                 if (!res.IsSuccessStatusCode)
                                 {
-                                    WriteLog($"Call {f.Index}.mp3 lỗi {res.ReasonPhrase}");
+                                    string content = res.Content.ReadAsStringAsync().Result;
+                                    WriteLog($"Call {f.Index}.mp3 lỗi {content}");
                                 }
                                 return res.IsSuccessStatusCode;
                             }, maxRetries: 3);
@@ -185,35 +186,43 @@ namespace SRT2Speech.AppWindow.Views
                             if (response.IsSuccessStatusCode)
                             {
                                 var responseContent = await response.Content.ReadAsStringAsync();
-                                string requestId = JObject.Parse(responseContent).GetSafeValue<dynamic>("result").request_id;
-                                _ = Task.Run(async () =>
+                                if (responseContent.Contains("error_code"))
                                 {
-                                    await Task.Delay(TimeSpan.FromSeconds(2));
-                                    var dowload = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await _httpClient.SendAsync(GetRqMessage(requestId)), (res) =>
+                                    WriteLog($"[ERROR] Lỗi {responseContent}");
+                                }
+                                else
+                                {
+                                    string requestId = JObject.Parse(responseContent).GetSafeValue<dynamic>("result").request_id;
+                                    _ = Task.Run(async () =>
                                     {
-                                        bool success = res.IsSuccessStatusCode;
-                                        if (success)
+                                        await Task.Delay(TimeSpan.FromSeconds(2));
+                                        var dowload = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await _httpClient.SendAsync(GetRqMessage(requestId)), (res) =>
                                         {
-                                            var dowloadContent = res.Content.ReadAsStringAsync().Result;
-                                            success = dowloadContent.Contains("\"status\":\"SUCCESS\"");
+                                            bool success = res.IsSuccessStatusCode;
+                                            if (success)
+                                            {
+                                                var dowloadContent = res.Content.ReadAsStringAsync().Result;
+                                                success = dowloadContent.Contains("\"status\":\"SUCCESS\"");
+                                            }
+                                            return success;
+                                        });
+                                        var dowloadContent = await dowload.Content.ReadAsStringAsync();
+                                        string audioLink = JObject.Parse(dowloadContent).GetSafeValue<dynamic>("result").audio_link;
+                                        string filePath = Path.Combine(localtion, $"Files/Vbee/{f.Index}.mp3");
+
+                                        var r = await _httpClient.GetAsync(audioLink);
+                                        var stream = await r.Content.ReadAsStreamAsync();
+                                        using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                                        {
+                                            await stream.CopyToAsync(fileStream);
                                         }
-                                        return success;
+                                        _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
+                                        WriteLog($"[DOWLOADED] Dowload thành công {f.Index}.mp3, link = {audioLink}");
+
                                     });
-                                    var dowloadContent = await dowload.Content.ReadAsStringAsync();
-                                    string audioLink = JObject.Parse(dowloadContent).GetSafeValue<dynamic>("result").audio_link;
-                                    string filePath = Path.Combine(localtion, $"Files/Vbee/{f.Index}.mp3");
-
-                                    var r = await _httpClient.GetAsync(audioLink);
-                                    var stream = await r.Content.ReadAsStreamAsync();
-                                    using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                                    {
-                                        await stream.CopyToAsync(fileStream);
-                                    }
-                                    _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
-                                    WriteLog($"[DOWLOADED] Dowload thành công {f.Index}.mp3, link = {audioLink}");
-
-                                });
-                                WriteLog($"[SUCCESS] Gửi request - Callback: {_vbeeConfig.CallbackUrl} - {response.StatusCode} - {responseContent}");
+                                    WriteLog($"[SUCCESS] Gửi request - Callback: {_vbeeConfig.CallbackUrl} - {response.StatusCode} - {responseContent}");
+                                }
+                                
                             }
                             else
                             {
