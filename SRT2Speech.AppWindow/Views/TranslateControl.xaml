@@ -57,8 +57,7 @@
                       Name="promptCombobox"
                       VerticalContentAlignment="Center"
                       SelectionChanged="ComboBox_SelectionChanged">
-                <ComboBoxItem IsSelected="True">To Vietnamese</ComboBoxItem>
-                <ComboBoxItem>To English</ComboBoxItem>
+               
             </ComboBox>
             <Button Grid.Row="1"
                     Grid.Column="3"

@@ -64,6 +64,13 @@ namespace SRT2Speech.AppWindow.Views
             }
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();
             _tranConfig = YamlUtility.Deserialize<TranslateConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "TranslateConfig.yaml")));
+            promptCombobox.Items.Clear();
+            _tranConfig.Prompts.ForEach(f =>
+            {
+                promptCombobox.Items.Add(f.Key);
+            });
+            promptCombobox.SelectedIndex = 0;
+
             WriteLog($"Thông tin cấu hình Translate {JsonConvert.SerializeObject(_tranConfig)}");
             fileInputContent = string.Empty;
         }
@@ -135,7 +142,7 @@ namespace SRT2Speech.AppWindow.Views
             var requestBody = new
             {
                 safetySettings = harmCategories,
-                contents = new { role = "user", parts = new object[] { new { text = $"{prompt}. {_tranConfig.Prompt}\n@@@{text}@@@" } } },
+                contents = new { role = "user", parts = new object[] { new { text = $"{prompt}. \n@@@{text}@@@" } } },
             };
 
             var jsonContent = JsonConvert.SerializeObject(requestBody);
@@ -426,32 +433,28 @@ namespace SRT2Speech.AppWindow.Views
                     MessageBox.Show("File no content.");
                 }
                 WriteLog("Read file done.");
+                //
             }
         }
 
         private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (promptCombobox.SelectedItem is ComboBoxItem selectedItem)
+            if (promptCombobox.SelectedItem is string)
             {
-                if (selectedItem.Content != null)
-                {
-                    prompt = GetPromptCombobox(selectedItem.Content.ToString()!);
-                    WriteLog($"Chọn prompt: {selectedItem.Content}");
-                }
+                prompt = GetPromptCombobox((promptCombobox.SelectedItem as string)!);
+                WriteLog($"Chọn prompt: {promptCombobox.SelectedItem}, content: {prompt}");
             }
         }
 
         private string GetPromptCombobox(string content)
         {
-            string common = "You are a translator, let translate bellow text to {0}. Only return the result.";
-            string prompt = content switch
+            var slt = _tranConfig.Prompts.Find(f => f.Key == content);
+            if(slt != null)
             {
-                "To English" => "English",
-                "To Vietnamese" => "Vietnamese",
-                _ => "Vietnamese"
-            };
+                return slt.Value;
+            }
 
-            return string.Format(common, prompt);
+            return string.Empty;
         }
 
 
