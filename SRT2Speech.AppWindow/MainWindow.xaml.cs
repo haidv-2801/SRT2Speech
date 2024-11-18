@@ -26,7 +26,7 @@ namespace SRT2Speech.AppWindow
     {
         string fileInputContent;
         string nameFileInput;
-        string location = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
+        string location = "";
         bool isValidKey = false;
         FptConfig _fptConfig;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
@@ -44,6 +44,7 @@ namespace SRT2Speech.AppWindow
             {
                 return;
             }
+            location = Directory.GetCurrentDirectory();
             CreateFolders();
             btnDowloadError.IsEnabled = false;
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();

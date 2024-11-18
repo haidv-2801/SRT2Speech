@@ -27,12 +27,14 @@ namespace SRT2Speech.AppWindow.Views
     public partial class VbeeUserControl : UserControl
     {
         string fileInputContent;
-        string localtion = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
+        string localtion = "";
         bool isValidKey = false;
         VbeeConfig _vbeeConfig;
         SignalRConfig _signalR;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
         private static readonly HttpClient _httpClient = new HttpClient();
+        // Lưu tệp log vào thư mục hiện tại
+        string _logFilePath = "";
 
         public VbeeUserControl()
         {
@@ -48,6 +50,9 @@ namespace SRT2Speech.AppWindow.Views
             {
                 return;
             }
+            string date = DateTime.Now.ToString("ddMMyyyy");
+            localtion = Directory.GetCurrentDirectory();
+            _logFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"{date}.log");
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();
             _vbeeConfig = YamlUtility.Deserialize<VbeeConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ConfigVbee.yaml")));
             WriteLog($"Thông tin cấu hình Vbee {JsonConvert.SerializeObject(_vbeeConfig)}");
@@ -138,6 +143,27 @@ namespace SRT2Speech.AppWindow.Views
             return request;
         }
 
+        public void LogToFile(string message)
+        {
+            this.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    // Append the message with a timestamp
+                    string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}";
+                    // Tạo tên tệp log theo định dạng ddMMyyyy
+                    string date = DateTime.Now.ToString("ddMMyyyy");
+
+                    File.AppendAllText(_logFilePath, logEntry + Environment.NewLine);
+                }
+                catch (Exception ex)
+                {
+                    // Handle any exceptions (e.g., log to the console or another file)
+                    Console.WriteLine($"Failed to log message: {ex.Message}");
+                }
+            });
+        }
+
         private async Task StartT2S(List<SubtitleItem> texts)
         {
             if (!ThrowKeyValid())
@@ -209,7 +235,6 @@ namespace SRT2Speech.AppWindow.Views
                                         var dowloadContent = await dowload.Content.ReadAsStringAsync();
                                         string audioLink = JObject.Parse(dowloadContent).GetSafeValue<dynamic>("result").audio_link;
                                         string filePath = Path.Combine(localtion, $"Files/Vbee/{f.Index}.mp3");
-
                                         var r = await _httpClient.GetAsync(audioLink);
                                         var stream = await r.Content.ReadAsStreamAsync();
                                         using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
@@ -222,7 +247,7 @@ namespace SRT2Speech.AppWindow.Views
                                     });
                                     WriteLog($"[SUCCESS] Gửi request - Callback: {_vbeeConfig.CallbackUrl} - {response.StatusCode} - {responseContent}");
                                 }
-                                
+
                             }
                             else
                             {

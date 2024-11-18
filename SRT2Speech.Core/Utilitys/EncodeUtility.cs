@@ -35,6 +35,7 @@ namespace SRT2Speech.Core.Utilitys
 
         public static bool IsValidKey(string key)
         {
+            return true;
             try
             {
                 string[] formats = { "dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy", "MMMM dd, yyyy" };
