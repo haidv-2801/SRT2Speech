@@ -7,6 +7,7 @@ using SRT2Speech.Core.Utilitys;
 using SubtitlesParser.Classes;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Windows;
@@ -15,16 +16,16 @@ using System.Windows.Controls;
 namespace SRT2Speech.AppWindow.Views
 {
     /// <summary>
-    /// Interaction logic for EnglishVoiceControl.xaml
+    /// Interaction logic for ElevenlabVoiceControl.xaml
     /// </summary>
-    public partial class EnglishVoiceControl : UserControl
+    public partial class ElevenlabVoiceControl : UserControl
     {
         string fileInputContent;
         bool isValidKey = true;
-        GoogleConfig _googleConfig;
+        ElevenlabConfig _elevenLabConfig;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
 
-        public EnglishVoiceControl()
+        public ElevenlabVoiceControl()
         {
             InitializeComponent();
             InitDefaultValue();
@@ -38,8 +39,8 @@ namespace SRT2Speech.AppWindow.Views
                 return;
             }
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();
-            _googleConfig = YamlUtility.Deserialize<GoogleConfig>(File.ReadAllText(System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "GoogleConfig.yaml")));
-            WriteLog($"Thông tin cấu hình Google {JsonConvert.SerializeObject(_googleConfig)}");
+            _elevenLabConfig = YamlUtility.Deserialize<ElevenlabConfig>(File.ReadAllText(Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ElevenlabConfig.yaml")));
+            WriteLog($"Thông tin cấu hình ElevenlabConfig {JsonConvert.SerializeObject(_elevenLabConfig)}");
             fileInputContent = string.Empty;
         }
 
@@ -113,13 +114,18 @@ namespace SRT2Speech.AppWindow.Views
         {
             var requestBody = new
             {
-                input = new { text = text },
-                voice = new
+                voice_id = _elevenLabConfig.VoiceId,  // Adam pre-made voice
+                optimize_streaming_latency = _elevenLabConfig.OptimizeStreamingLatency,
+                output_format = _elevenLabConfig.OutputFormat,
+                text,
+                model_id = _elevenLabConfig.ModelId,
+                voice_settings = new
                 {
-                    languageCode = "en-US",
-                    name = _googleConfig.VoiceName
-                },
-                audioConfig = new { audioEncoding = _googleConfig.AudioEncoding, speakingRate = _googleConfig.SpeedRate }
+                    stability = _elevenLabConfig.VoiceSettings.Stability,
+                    similarity_boost = _elevenLabConfig.VoiceSettings.SimilarityBoost,
+                    style = _elevenLabConfig.VoiceSettings.Style,
+                    use_speaker_boost = _elevenLabConfig.VoiceSettings.UseSpeakerBoost
+                }
             };
 
             var jsonContent = JsonConvert.SerializeObject(requestBody);
@@ -173,11 +179,14 @@ namespace SRT2Speech.AppWindow.Views
             {
                 try
                 {
-                    string apiKey = _googleConfig.ApiKey;
-                    string url = _googleConfig.Url.Replace("#key#", apiKey); ;
+                    string apiKey = _elevenLabConfig.ApiKey;
+                    string url = _elevenLabConfig.Url.Replace("#key#", _elevenLabConfig.VoiceId);
                     using (var client = new HttpClient())
                     {
-                        var chunks = texts.ChunkBy<SubtitleItem>(_googleConfig.MaxThreads);
+                        // Add the xi-api-key header
+                        client.DefaultRequestHeaders.Add("xi-api-key", apiKey);
+
+                        var chunks = texts.ChunkBy(_elevenLabConfig.MaxThreads);
                         foreach (var item in chunks)
                         {
                             var tasks = item.Select(async f =>
@@ -186,44 +195,27 @@ namespace SRT2Speech.AppWindow.Views
                                 var response = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await client.PostAsync(url, GetContent(f.Line)), (res) =>
                                 {
                                     bool success = res.IsSuccessStatusCode;
-                                    if (success)
-                                    {
-                                        var dowloadContent = res.Content.ReadAsStringAsync().Result;
-                                        success = dowloadContent.Contains("audioContent");
-                                    }
-                                    else
-                                    {
-                                        string content = res.Content.ReadAsStringAsync().Result;
-                                        if (content.Contains("API_KEY_INVALID"))
-                                        {
-                                            WriteLog($"[ERROR] Đang dowload lại - Message: API key không hợp lệ");
-                                        }
-                                        else
-                                        {
-                                            WriteLog($"[ERROR] {content} Đang dowload lại Files/English/{f.Index}.mp3");
-                                        }
-                                    }
                                     return success;
                                 });
                                 WriteLog($"[SUCCESS] Gửi request thành công cho file {f.Index}.mp3");
-                                var responseContent = await response.Content.ReadAsStringAsync();
                                 if (response.IsSuccessStatusCode)
                                 {
-                                    var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
-                                    var audioContent = result.audioContent;
-                                    byte[] audioBytes = Convert.FromBase64String((string)audioContent);
-                                    await System.IO.File.WriteAllBytesAsync($"Files/English/{f.Index}.mp3", audioBytes);
+                                    using (var fileStream = new FileStream($"Files/Eleven/{f.Index}.mp3", FileMode.Create, FileAccess.Write, FileShare.None))
+                                    {
+                                        await response.Content.CopyToAsync(fileStream);
+                                    }
                                     _trackError.Remove(f.Index.ToString(), out SubtitleItem? _);
-                                    WriteLog($"[DOWLOADED] Dowload thành công Files/English/{f.Index}.mp3");
+                                    WriteLog($"[DOWLOADED] Dowload thành công Files/Eleven/{f.Index}.mp3");
                                 }
                                 else
                                 {
-                                    WriteLog("[ERROR]: " + responseContent);
+                                    string contentErr = await response.Content.ReadAsStringAsync();
+                                    WriteLog("[ERROR]: " + contentErr);
                                 }
                             });
                             await Task.WhenAll(tasks);
-                            WriteLog($"Bắt đầu nghỉ {_googleConfig.SleepTime} giây");
-                            await Task.Delay(TimeSpan.FromSeconds(_googleConfig.SleepTime));
+                            WriteLog($"Bắt đầu nghỉ {_elevenLabConfig.SleepTime} giây");
+                            await Task.Delay(TimeSpan.FromSeconds(_elevenLabConfig.SleepTime));
                         }
 
                     }

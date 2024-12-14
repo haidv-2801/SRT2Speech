@@ -27,7 +27,7 @@ namespace SRT2Speech.AppWindow
         string fileInputContent;
         string nameFileInput;
         string location = "";
-        bool isValidKey = false;
+        bool isValidKey = true;
         FptConfig _fptConfig;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
         public MainWindow()
@@ -39,7 +39,7 @@ namespace SRT2Speech.AppWindow
         private void InitDefaultValue()
         {
 
-            ReadKey();
+            //ReadKey();
             if (!ThrowKeyValid())
             {
                 return;
@@ -61,6 +61,8 @@ namespace SRT2Speech.AppWindow
                 var fpt = Path.Combine(curDirect, "Files/FPT");
                 var vbee = Path.Combine(curDirect, "Files/Vbee");
                 var english = Path.Combine(curDirect, "Files/English");
+                var eleven = Path.Combine(curDirect, "Files/Eleven");
+                var aiStudio = Path.Combine(curDirect, "Files/AiStudio");
                 if (!Directory.Exists(fpt))
                 {
                     Directory.CreateDirectory(fpt);
@@ -72,6 +74,14 @@ namespace SRT2Speech.AppWindow
                 if (!Directory.Exists(english))
                 {
                     Directory.CreateDirectory(english);
+                }
+                if (!Directory.Exists(eleven))
+                {
+                    Directory.CreateDirectory(eleven);
+                }
+                if (!Directory.Exists(aiStudio))
+                {
+                    Directory.CreateDirectory(aiStudio);
                 }
             }
             catch (Exception ex)
@@ -141,11 +151,17 @@ namespace SRT2Speech.AppWindow
             newTab2.Content = tranControl;
             tabControl.Items.Add(newTab2);
 
-            //MediaProccessControl mediaControl = new MediaProccessControl();
-            //TabItem newTab2 = new TabItem();
-            //newTab2.Header = "Media";
-            //newTab2.Content = mediaControl;
-            //tabControl.Items.Add(newTab2);
+            AIStudioControl aiStudioControl = new AIStudioControl();
+            TabItem newTab3 = new TabItem();
+            newTab3.Header = "AiStudio";
+            newTab3.Content = aiStudioControl;
+            tabControl.Items.Add(newTab3);
+
+            ElevenlabVoiceControl elevenLabControl = new ElevenlabVoiceControl();
+            TabItem newTab4 = new TabItem();
+            newTab4.Header = "Elevenlab";
+            newTab4.Content = elevenLabControl;
+            tabControl.Items.Add(newTab4);
         }
 
         private void FullWidthLog()

@@ -36,7 +36,7 @@ namespace SRT2Speech.AppWindow.Views
         string fileCheckInputContent;
         string outFolder;
         string prompt = "You are a translator, let translate text bellow to Vietnamese";
-        bool isValidKey = false;
+        bool isValidKey = true;
         string filePath = "translated.srt";
         TranslateConfig _tranConfig;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
@@ -57,7 +57,7 @@ namespace SRT2Speech.AppWindow.Views
         }
         private void InitDefaultValue()
         {
-            ReadKey();
+            //ReadKey();
             if (!ThrowKeyValid())
             {
                 return;

@@ -28,7 +28,7 @@ namespace SRT2Speech.AppWindow.Views
     {
         string fileInputContent;
         string localtion = "";
-        bool isValidKey = false;
+        bool isValidKey = true;
         VbeeConfig _vbeeConfig;
         SignalRConfig _signalR;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
@@ -45,7 +45,7 @@ namespace SRT2Speech.AppWindow.Views
 
         private void InitDefaultValue()
         {
-            ReadKey();
+            //ReadKey();
             if (!ThrowKeyValid())
             {
                 return;
