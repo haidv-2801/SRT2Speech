@@ -5,9 +5,11 @@ using SRT2Speech.Core.Models;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
@@ -93,8 +95,6 @@ namespace SRT2Speech.AppWindow.Views
         public AIStudioControl()
         {
             InitializeComponent();
-
-            _ = ReceivedEventKeys();
         }
 
         private async Task ReceivedEventKeys()
@@ -105,16 +105,7 @@ namespace SRT2Speech.AppWindow.Views
 
             connection.On("ReceiveKeyEvents", (List<string> eventKeys) =>
             {
-                var (valid, message) = ValidateCoordinates(currentPos);
-                if (!valid)
-                {
-                    WriteLog($"Không sử lý được event {message}");
-                    MessageBox.Show($"Error: {message}");
-                }
-                else
-                {
-                    ProcessEventKeys(eventKeys);
-                }
+                ProcessEventKeys(eventKeys);
                 WriteLog($"Event nhận từ chrome: {JsonConvert.SerializeObject(eventKeys)}");
             });
 
@@ -153,7 +144,7 @@ namespace SRT2Speech.AppWindow.Views
                 if (!ProcessedID.ContainsKey(key))
                 {
                     string path = System.IO.Path.Combine($"{Directory.GetCurrentDirectory()}/Files/AiStudio", model.File);
-
+                    WriteLog($"Đã ghi kết quả vào thư mục: {path}");
                     try
                     {
                         using (StreamWriter writer = new StreamWriter(path, true))
@@ -273,7 +264,7 @@ namespace SRT2Speech.AppWindow.Views
         {
             POINT pnt;
             GetCursorPos(out pnt);
-            txtCoordination.Text = $"X: {pnt.X}, Y: {pnt.Y}";
+            //txtCoordination.Text = $"X: {pnt.X}, Y: {pnt.Y}";
         }
 
         private void ButtonGetCoordination_Click(object sender, RoutedEventArgs e)
@@ -282,8 +273,8 @@ namespace SRT2Speech.AppWindow.Views
             {
                 // Bật chế độ lấy tọa độ
                 isGettingCoordinates = true;
-                txtCoordination.Text = "Bấm vào một điểm trên màn hình để lấy tọa độ";
-                btnMove.Content = "Dừng lấy tọa độ...";
+//txtCoordination.Text = "Bấm vào một điểm trên màn hình để lấy tọa độ";
+               // btnMove.Content = "Dừng lấy tọa độ...";
 
                 dt.Stop();
                 dt.Tick += new EventHandler(timer_tick);
@@ -293,7 +284,7 @@ namespace SRT2Speech.AppWindow.Views
             else
             {
                 dt.Stop();
-                btnMove.Content = "Lấy tọa độ";
+                //btnMove.Content = "Lấy tọa độ";
                 isGettingCoordinates = false;
             }
         }
@@ -348,27 +339,97 @@ namespace SRT2Speech.AppWindow.Views
 
         private void ButtonRun_Click(object sender, RoutedEventArgs e)
         {
-            if (isRunning)
+            WriteLog($"Tool đã khởi động...");
+            // Path to the executable
+            string exePath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "webapi\\SRT2Speech.WebAPI.exe"); // Change this to your exe path
+            KillProcessListeningOnPort(5000);
+            try
             {
-                //timer.Stop();
-                isRunning = false;
-                WriteLog($"Dừng chạy");
-                return;
-            }
+                WriteLog($"Đang khởi chạy webapi...");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true // Use shell execute to run the executable
+                });
+                WriteLog($"Webapi running...");
 
-            if (isGettingCoordinates)
+                _ = ReceivedEventKeys();
+            }
+            catch (Exception ex)
             {
-                MessageBox.Show("Cần dùng lấy tọa độ trước");
-                return;
+                WriteLog($"Lỗi không bật được webapi... {ex.Message}");
+                MessageBox.Show($"Error opening executable: {ex.Message}");
             }
-            isRunning = true;
-            WriteLog($"Bắt đầu chạy... với tọa độ set là {txtCoordination1.Text}");
-            currentPos = txtCoordination1.Text;
+        }
 
-            //timer = new DispatcherTimer();
-            //timer.Interval = TimeSpan.FromMilliseconds(clickInterval);
-            //timer.Tick += Timer_Tick;
-            //timer.Start();
+        private void KillProcessListeningOnPort(int port)
+        {
+            var tcpListeners = IPGlobalProperties.GetIPGlobalProperties()
+                .GetActiveTcpListeners()
+                .Where(endpoint => endpoint.Port == port);
+
+            foreach (var listener in tcpListeners)
+            {
+                // Get the process ID using the netstat command
+                string processId = GetProcessIdByPort(listener.Port);
+                if (!string.IsNullOrEmpty(processId))
+                {
+                    try
+                    {
+                        Process.GetProcessById(int.Parse(processId)).Kill();
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteLog($"Error killing process: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private string GetProcessIdByPort(int port)
+        {
+            var cmd = $"/C netstat -aon | findstr :{port}";
+            var processInfo = new ProcessStartInfo("cmd.exe", cmd)
+            {
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (var process = Process.Start(processInfo))
+            {
+                using (var reader = process.StandardOutput)
+                {
+                    string result = reader.ReadToEnd();
+                    var lines = result.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 5)
+                        {
+                            return parts.Last(); // Process ID is the last part
+                        }
+                    }
+                }
+            }
+            return null; // No process found
+        }
+
+        private void KillProcess(string processName)
+        {
+            var processes = Process.GetProcessesByName(processName);
+            foreach (var process in processes)
+            {
+                try
+                {
+                    process.Kill();
+                    process.WaitForExit(); // Optional: wait for the process to exit
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error killing process {processName}: {ex.Message}");
+                }
+            }
         }
 
         private bool WriteLog(string message)
@@ -389,7 +450,7 @@ namespace SRT2Speech.AppWindow.Views
                 return;
             }
 
-            var (x, y) = GetCoordinate(txtCoordination1.Text);
+            var (x, y) = GetCoordinate("");
             if (x != 0 || y != 0)
             {
                 ClickAtPosition(x, y);

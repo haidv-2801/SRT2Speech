@@ -133,23 +133,23 @@ namespace SRT2Speech.AppWindow
 
         private void InitWindow()
         {
-            VbeeUserControl vbeeControl = new VbeeUserControl();
-            TabItem newTab = new TabItem();
-            newTab.Header = "Vbee";
-            newTab.Content = vbeeControl;
-            tabControl.Items.Add(newTab);
+            //VbeeUserControl vbeeControl = new VbeeUserControl();
+            //TabItem newTab = new TabItem();
+            //newTab.Header = "Vbee";
+            //newTab.Content = vbeeControl;
+            //tabControl.Items.Add(newTab);
 
-            EnglishVoiceControl enControl = new EnglishVoiceControl();
-            TabItem newTab1 = new TabItem();
-            newTab1.Header = "EnglishVoice";
-            newTab1.Content = enControl;
-            tabControl.Items.Add(newTab1);
+            //EnglishVoiceControl enControl = new EnglishVoiceControl();
+            //TabItem newTab1 = new TabItem();
+            //newTab1.Header = "EnglishVoice";
+            //newTab1.Content = enControl;
+            //tabControl.Items.Add(newTab1);
 
-            TranslateControl tranControl = new TranslateControl();
-            TabItem newTab2 = new TabItem();
-            newTab2.Header = "Translate SRT";
-            newTab2.Content = tranControl;
-            tabControl.Items.Add(newTab2);
+            //TranslateControl tranControl = new TranslateControl();
+            //TabItem newTab2 = new TabItem();
+            //newTab2.Header = "Translate SRT";
+            //newTab2.Content = tranControl;
+            //tabControl.Items.Add(newTab2);
 
             AIStudioControl aiStudioControl = new AIStudioControl();
             TabItem newTab3 = new TabItem();
@@ -157,11 +157,11 @@ namespace SRT2Speech.AppWindow
             newTab3.Content = aiStudioControl;
             tabControl.Items.Add(newTab3);
 
-            ElevenlabVoiceControl elevenLabControl = new ElevenlabVoiceControl();
-            TabItem newTab4 = new TabItem();
-            newTab4.Header = "Elevenlab";
-            newTab4.Content = elevenLabControl;
-            tabControl.Items.Add(newTab4);
+            //ElevenlabVoiceControl elevenLabControl = new ElevenlabVoiceControl();
+            //TabItem newTab4 = new TabItem();
+            //newTab4.Header = "Elevenlab";
+            //newTab4.Content = elevenLabControl;
+            //tabControl.Items.Add(newTab4);
         }
 
         private void FullWidthLog()
