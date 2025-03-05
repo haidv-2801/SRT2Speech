@@ -63,6 +63,7 @@ namespace SRT2Speech.AppWindow
                 var english = Path.Combine(curDirect, "Files/English");
                 var eleven = Path.Combine(curDirect, "Files/Eleven");
                 var aiStudio = Path.Combine(curDirect, "Files/AiStudio");
+                var ttsOpenai = Path.Combine(curDirect, "Files/TtsOpenai");
                 if (!Directory.Exists(fpt))
                 {
                     Directory.CreateDirectory(fpt);
@@ -82,6 +83,10 @@ namespace SRT2Speech.AppWindow
                 if (!Directory.Exists(aiStudio))
                 {
                     Directory.CreateDirectory(aiStudio);
+                }
+                if (!Directory.Exists(ttsOpenai))
+                {
+                    Directory.CreateDirectory(ttsOpenai);
                 }
             }
             catch (Exception ex)
