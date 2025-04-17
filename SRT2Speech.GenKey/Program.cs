@@ -63,38 +63,47 @@ namespace SRT2Speech.GenKey
 
     internal class Program
     {
-        private static readonly byte[] _key = Encoding.UTF8.GetBytes("XSVmBQXytXdtYpQ7ObPAkCxIULQbdxLN");
-        private static readonly byte[] _iv = Encoding.UTF8.GetBytes("2VxcOyKWh2KGVnPt");
-
         static void Main(string[] args)
         {
             try
             {
-                //string m = "0a0027000006";
                 Console.InputEncoding = Encoding.UTF8;
                 Console.OutputEncoding = Encoding.UTF8;
+
                 Console.WriteLine("Nhập MAC:");
                 string mac = Console.ReadLine()!;
                 mac = mac.ToLowerInvariant().Replace(":", "").Replace("-", "").Replace("_", "");
 
-                Console.WriteLine("Nhập số ngày:");
-                string day = Console.ReadLine()!;
+                string endTimeInput;
 
-                string plainText = $"{mac}__{DateTime.Now.AddDays(int.Parse(day)).ToString("dd/MM/yyyy")}";
-                string encrypt = AESEncryption.EncryptAES(plainText);
-                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "key.txt");
-
-                // Write text to the file
-                using (StreamWriter writer = new StreamWriter(filePath))
+                while (true)
                 {
-                    writer.WriteLine(encrypt);
+                    Console.Write("Nhập ngày tháng năm (dd/mm/yyyy): ");
+                    endTimeInput = Console.ReadLine()!;
+
+                    if (DateTime.TryParseExact(endTimeInput, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime endTime))
+                    {
+                        Console.WriteLine("Ngày tháng năm hợp lệ: " + endTime.ToString("dd/MM/yyyy"));
+
+
+                        string plainText = $"{mac}__{endTime.ToString("dd/MM/yyyy")}";
+                        string encrypt = AESEncryption.EncryptAES(plainText);
+                        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "key.txt");
+
+                        // Write text to the file
+                        using (StreamWriter writer = new StreamWriter(filePath))
+                        {
+                            writer.WriteLine(encrypt);
+                        }
+                        Console.WriteLine($"Key {encrypt} đã được tạo vào file {filePath}");
+
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Ngày tháng năm không hợp lệ. Vui lòng nhập lại.");
+                    }
                 }
-                Console.WriteLine($"Key {encrypt} đã được tạo vào file {filePath}");
-            }
-            catch (FormatException ex)
-            {
-                Console.WriteLine($"[ERROR] Số ngày phải nhập số");
-                Console.WriteLine("[ERROR]" + ex.Message);
             }
             catch (Exception ex)
             {
