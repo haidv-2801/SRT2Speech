@@ -180,6 +180,12 @@ namespace SRT2Speech.AppWindow.Views
                     WriteLog($"Enter...");
                 }
 
+                if (key == EventKeys.Space)
+                {
+                    SimulateSpace();
+                    WriteLog($"Space...");
+                }
+
                 if (key == EventKeys.MouseLeft)
                 {
                     var (x, y) = GetCoordinate(currentPos);
@@ -228,6 +234,16 @@ namespace SRT2Speech.AppWindow.Views
 
             Thread.Sleep(100);
             SetCursorPos(_currentPos.X, _currentPos.Y);
+        }
+
+        private const byte VK_SPACE = 0x20; // Mã phím Space
+
+        public void SimulateSpace()
+        {
+            // Nhấn phím Space
+            keybd_event(VK_SPACE, 0, 0, UIntPtr.Zero);
+            // Thả phím Space
+            keybd_event(VK_SPACE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
         }
 
 
