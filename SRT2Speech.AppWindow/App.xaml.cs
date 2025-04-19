@@ -12,11 +12,24 @@ namespace SRT2Speech.AppWindow
         {
             try
             {
-                base.OnStartup(e);
+                var license = new LicenseManager.LicensingService();
+                var result = license.ValidateLicense();
+                if(result.IsValid)
+                {
+                    CreateFolders();
+                    base.OnStartup(e);
+                }
+                else
+                {
+                    MessageBox.Show("LicenseError: " + result.Message);
+                    Application.Current.Shutdown(); // Thêm lệnh tắt ứng dụng
+                }
+
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                MessageBox.Show("LicenseError: " + ex.Message);
+                Application.Current.Shutdown(); // Thêm lệnh tắt ứng dụng
             }
         }
     }

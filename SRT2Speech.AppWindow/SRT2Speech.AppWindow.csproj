@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SRT2Speech.Core\SRT2Speech.Core.csproj" />
+    <ProjectReference Include="..\SRT2Speech.LicenseManager\SRT2Speech.LicenseManager.csproj" />
   </ItemGroup>
 
 </Project>
