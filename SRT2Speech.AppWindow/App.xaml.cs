@@ -16,7 +16,6 @@ namespace SRT2Speech.AppWindow
                 var result = license.ValidateLicense();
                 if(result.IsValid)
                 {
-                    CreateFolders();
                     base.OnStartup(e);
                 }
                 else
