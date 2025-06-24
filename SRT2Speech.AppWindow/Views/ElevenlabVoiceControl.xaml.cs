@@ -119,6 +119,7 @@ namespace SRT2Speech.AppWindow.Views
                 output_format = _elevenLabConfig.OutputFormat,
                 text,
                 model_id = _elevenLabConfig.ModelId,
+                language_code = _elevenLabConfig.LanguageCode,
                 voice_settings = new
                 {
                     stability = _elevenLabConfig.VoiceSettings.Stability,

@@ -16,6 +16,7 @@ namespace SRT2Speech.AppWindow.Models
         public string ApiKey { get; set; } = default!;
         public int MaxThreads { get; set; }
         public int SleepTime { get; set; }
+        public string LanguageCode { get; set; } = default!;
         public VoiceSettings VoiceSettings { get; set; } = new VoiceSettings(); // Voice settings
     }
 
