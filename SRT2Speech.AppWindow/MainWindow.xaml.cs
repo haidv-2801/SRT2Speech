@@ -59,29 +59,10 @@ namespace SRT2Speech.AppWindow
             {
                 var curDirect = Directory.GetCurrentDirectory();
                 var fpt = Path.Combine(curDirect, "Files/FPT");
-                var vbee = Path.Combine(curDirect, "Files/Vbee");
-                var english = Path.Combine(curDirect, "Files/English");
-                var eleven = Path.Combine(curDirect, "Files/Eleven");
-                var aiStudio = Path.Combine(curDirect, "Files/AiStudio");
+
                 if (!Directory.Exists(fpt))
                 {
                     Directory.CreateDirectory(fpt);
-                }
-                if (!Directory.Exists(vbee))
-                {
-                    Directory.CreateDirectory(vbee);
-                }
-                if (!Directory.Exists(english))
-                {
-                    Directory.CreateDirectory(english);
-                }
-                if (!Directory.Exists(eleven))
-                {
-                    Directory.CreateDirectory(eleven);
-                }
-                if (!Directory.Exists(aiStudio))
-                {
-                    Directory.CreateDirectory(aiStudio);
                 }
             }
             catch (Exception ex)
@@ -133,35 +114,44 @@ namespace SRT2Speech.AppWindow
 
         private void InitWindow()
         {
-            VbeeUserControl vbeeControl = new VbeeUserControl();
-            TabItem newTab = new TabItem();
-            newTab.Header = "Vbee";
-            newTab.Content = vbeeControl;
-            tabControl.Items.Add(newTab);
+            //VbeeUserControl vbeeControl = new VbeeUserControl();
+            //TabItem newTab = new TabItem();
+            //newTab.Header = "Vbee";
+            //newTab.Content = vbeeControl;
+            //newTab.IsEnabled = false;
+            //tabControl.Items.Add(newTab);
 
-            EnglishVoiceControl enControl = new EnglishVoiceControl();
-            TabItem newTab1 = new TabItem();
-            newTab1.Header = "EnglishVoice";
-            newTab1.Content = enControl;
-            tabControl.Items.Add(newTab1);
+            //EnglishVoiceControl enControl = new EnglishVoiceControl();
+            //TabItem newTab1 = new TabItem();
+            //newTab1.Header = "EnglishVoice";
+            //newTab1.Content = enControl;
+            //newTab1.IsEnabled = false;
+            //tabControl.Items.Add(newTab1);
 
-            TranslateControl tranControl = new TranslateControl();
-            TabItem newTab2 = new TabItem();
-            newTab2.Header = "Translate SRT";
-            newTab2.Content = tranControl;
-            tabControl.Items.Add(newTab2);
+            //TranslateControl tranControl = new TranslateControl();
+            //TabItem newTab2 = new TabItem();
+            //newTab2.Header = "Translate SRT";
+            //newTab2.Content = tranControl;
+            //newTab2.IsEnabled = false;
+            //tabControl.Items.Add(newTab2);
 
-            AIStudioControl aiStudioControl = new AIStudioControl();
-            TabItem newTab3 = new TabItem();
-            newTab3.Header = "AiStudio";
-            newTab3.Content = aiStudioControl;
-            tabControl.Items.Add(newTab3);
+            //AIStudioControl aiStudioControl = new AIStudioControl();
+            //TabItem newTab3 = new TabItem();
+            //newTab3.Header = "AiStudio";
+            //newTab3.Content = aiStudioControl;
+            //newTab3.IsEnabled = false;
+            //tabControl.Items.Add(newTab3);
+
 
             ElevenlabVoiceControl elevenLabControl = new ElevenlabVoiceControl();
             TabItem newTab4 = new TabItem();
             newTab4.Header = "Elevenlab";
             newTab4.Content = elevenLabControl;
+            newTab4.IsEnabled = true;
             tabControl.Items.Add(newTab4);
+
+            // Set focus to Elevenlab tab
+            tabControl.SelectedItem = newTab4;
         }
 
         private void FullWidthLog()

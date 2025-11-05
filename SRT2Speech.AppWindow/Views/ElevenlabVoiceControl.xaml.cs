@@ -23,11 +23,14 @@ namespace SRT2Speech.AppWindow.Views
         string fileInputContent;
         bool isValidKey = true;
         ElevenlabConfig _elevenLabConfig;
+        ElevenlabKeyState _elevenLabKeyState;
+        ApiKeyManager _apiKeyManager;
         ConcurrentDictionary<string, SubtitleItem> _trackError;
 
         public ElevenlabVoiceControl()
         {
             InitializeComponent();
+            CreateFolders();
             InitDefaultValue();
             InitContent();
         }
@@ -40,8 +43,45 @@ namespace SRT2Speech.AppWindow.Views
             }
             _trackError = new ConcurrentDictionary<string, SubtitleItem>();
             _elevenLabConfig = YamlUtility.Deserialize<ElevenlabConfig>(File.ReadAllText(Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ElevenlabConfig.yaml")));
-            WriteLog($"Thông tin cấu hình ElevenlabConfig {JsonConvert.SerializeObject(_elevenLabConfig)}");
+            _elevenLabKeyState = YamlUtility.Deserialize<ElevenlabKeyState>(File.ReadAllText(Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ElevenlabKeyState.yaml")));
+            _apiKeyManager = new ApiKeyManager(
+                _elevenLabKeyState.ApiKeys,
+                _elevenLabConfig.KeySelectionAlgorithm,
+                TimeSpan.FromMinutes(_elevenLabConfig.QuotaResetTimeMinutes),
+                Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ElevenlabKeyState.yaml")
+            );
+            WriteLog($"[CONFIG] ===== CẤU HÌNH ELEVENLAB =====");
+            WriteLog($"  Voice ID: {_elevenLabConfig.VoiceId}");
+            WriteLog($"  Model: {_elevenLabConfig.ModelId}");
+            WriteLog($"  Output: {_elevenLabConfig.OutputFormat}");
+            WriteLog($"  Language: {_elevenLabConfig.LanguageCode}");
+            WriteLog($"  Thuật toán chọn key: {_elevenLabConfig.KeySelectionAlgorithm}");
+            WriteLog($"  Số lượng API keys: {_elevenLabKeyState.ApiKeys.Count}");
+            WriteLog($"  Thời gian reset quota: {_elevenLabConfig.QuotaResetTimeMinutes} phút");
+            WriteLog($"  Max threads: {_elevenLabConfig.MaxThreads}, Sleep time: {_elevenLabConfig.SleepTime}s");
+            WriteLog($"  Voice settings - Stability: {_elevenLabConfig.VoiceSettings.Stability}, Similarity: {_elevenLabConfig.VoiceSettings.SimilarityBoost}");
+            WriteLog($"[KEY_STATE] {_apiKeyManager.GetKeyStatusSummary()}");
             fileInputContent = string.Empty;
+        }
+
+        private bool CreateFolders()
+        {
+            try
+            {
+                var curDirect = Directory.GetCurrentDirectory();
+                var eleven = Path.Combine(curDirect, "Files/Eleven");
+                if (!Directory.Exists(eleven))
+                {
+                    Directory.CreateDirectory(eleven);
+                }
+             
+            }
+            catch (Exception ex)
+            {
+                WriteLog(ex.Message);
+            }
+
+            return true;
         }
 
         private bool ThrowKeyValid()
@@ -106,7 +146,7 @@ namespace SRT2Speech.AppWindow.Views
                 {
                     MessageBox.Show("File no content.");
                 }
-                WriteLog("Read file done.");
+                WriteLog($"[FILE] Đã đọc file SRT thành công: {Path.GetFileName(openFileDialog.FileName)} ({fileInputContent.Length} ký tự)");
             }
         }
 
@@ -145,13 +185,12 @@ namespace SRT2Speech.AppWindow.Views
                 MessageBox.Show("Please choose file.");
                 return;
             }
-            WriteLog("Begin extract text from file.");
+            WriteLog($"[PROCESSING] Bắt đầu xử lý file: {Path.GetFileName(txtFile.Text)}");
             var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
             using var fileStream = File.OpenRead(txtFile.Text);
             var texts = parser.ParseStream(fileStream, Encoding.UTF8);
-            WriteLog($"Tổng số bản ghi mp3 cần được dowload là {texts.Count}");
-            WriteLog("Extract text from file done.");
-            WriteLog("Begin dowload...");
+            WriteLog($"[SUBTITLES] Đã parse {texts.Count} subtitle items từ file SRT");
+            WriteLog($"[DOWNLOAD] Bắt đầu tải {texts.Count} file MP3 với {_elevenLabConfig.MaxThreads} threads đồng thời");
             _trackError.Clear();
 
             _ = StartT2S(texts);
@@ -180,12 +219,9 @@ namespace SRT2Speech.AppWindow.Views
             {
                 try
                 {
-                    string apiKey = _elevenLabConfig.ApiKey;
                     string url = _elevenLabConfig.Url.Replace("#key#", _elevenLabConfig.VoiceId);
                     using (var client = new HttpClient())
                     {
-                        // Add the xi-api-key header
-                        client.DefaultRequestHeaders.Add("xi-api-key", apiKey);
 
                         var chunks = texts.ChunkBy(_elevenLabConfig.MaxThreads);
                         foreach (var item in chunks)
@@ -193,6 +229,21 @@ namespace SRT2Speech.AppWindow.Views
                             var tasks = item.Select(async f =>
                             {
                                 _trackError.AddOrUpdate(f.Index.ToString(), f, (_, _) => f);
+
+                                // Get available API key
+                                var apiKeyInfo = _apiKeyManager.GetAvailableKey();
+                                if (apiKeyInfo == null)
+                                {
+                                    WriteLog($"[ERROR] Không có API key khả dụng cho file {f.Index}.mp3");
+                                    return;
+                                }
+
+                                WriteLog($"[KEY_SELECTED] Thuật toán {_elevenLabConfig.KeySelectionAlgorithm} - Chọn key {apiKeyInfo.Key} (Used: {apiKeyInfo.UsedCount}, Priority: {apiKeyInfo.Priority}) cho file {f.Index}.mp3");
+
+                                // Add the xi-api-key header
+                                client.DefaultRequestHeaders.Remove("xi-api-key");
+                                client.DefaultRequestHeaders.Add("xi-api-key", apiKeyInfo.Key);
+
                                 var response = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(async () => await client.PostAsync(url, GetContent(f.Line)), (res) =>
                                 {
                                     bool success = res.IsSuccessStatusCode;
@@ -212,10 +263,21 @@ namespace SRT2Speech.AppWindow.Views
                                 {
                                     string contentErr = await response.Content.ReadAsStringAsync();
                                     WriteLog("[ERROR]: " + contentErr);
+
+                                    // Check for quota exceeded or invalid API key
+                                    if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
+                                        contentErr.Contains("quota exceeded") ||
+                                        contentErr.Contains("rate limit") ||
+                                        contentErr.Contains("invalid_api_key") ||
+                                        contentErr.Contains("detected_unusual_activity"))
+                                    {
+                                        _apiKeyManager.MarkKeyExhausted(apiKeyInfo.Key, response);
+                                        WriteLog($"[KEY_EXHAUSTED] Key {apiKeyInfo.Key} đã bị khóa do vượt quota hoặc lỗi API key (Status: {response.StatusCode})");
+                                    }
                                 }
                             });
                             await Task.WhenAll(tasks);
-                            WriteLog($"Bắt đầu nghỉ {_elevenLabConfig.SleepTime} giây");
+                            WriteLog($"[BATCH] Hoàn thành batch {chunks.ToList().IndexOf(item) + 1}/{chunks.Count()}, nghỉ {_elevenLabConfig.SleepTime}s trước batch tiếp theo");
                             await Task.Delay(TimeSpan.FromSeconds(_elevenLabConfig.SleepTime));
                         }
 
@@ -223,8 +285,8 @@ namespace SRT2Speech.AppWindow.Views
                 }
                 catch (Exception ex)
                 {
+                    WriteLog($"[ERROR] Lỗi xử lý: {ex.Message}");
                     MessageBox.Show($"Có lỗi xảy ra: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    WriteLog($"Xuất hiện lỗi gọi sang Google");
                 }
 
             });
@@ -266,6 +328,160 @@ namespace SRT2Speech.AppWindow.Views
 
                 _ = StartT2S(texts);
             }
+        }
+
+        private void Button_LoadApiKeys(object sender, RoutedEventArgs e)
+        {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
+
+            try
+            {
+                WriteLog("[KEY_LOAD] Bắt đầu tải API keys từ file...");
+                
+                OpenFileDialog openFileDialog = new OpenFileDialog();
+                openFileDialog.Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*";
+                openFileDialog.Title = "Select API Keys File";
+                
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    var apiKeys = LoadApiKeysFromFile(openFileDialog.FileName);
+                    
+                    if (apiKeys != null && apiKeys.Count > 0)
+                    {
+                        UpdateKeyStateFile(apiKeys);
+                        RefreshApiKeyManager(apiKeys);
+                        WriteLog($"[KEY_LOAD] Đã tải thành công {apiKeys.Count} API keys từ file: {Path.GetFileName(openFileDialog.FileName)}");
+                        MessageBox.Show($"Đã tải thành công {apiKeys.Count} API keys!", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        WriteLog("[KEY_LOAD] Không tìm thấy API key hợp lệ trong file");
+                        MessageBox.Show("Không tìm thấy API key hợp lệ trong file!", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+                else
+                {
+                    WriteLog("[KEY_LOAD] Người dùng đã hủy việc chọn file");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"[KEY_LOAD_ERROR] Lỗi khi tải API keys: {ex.Message}");
+                MessageBox.Show($"Lỗi khi tải API keys: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private List<string> LoadApiKeysFromFile(string filePath)
+        {
+            try
+            {
+                WriteLog($"[KEY_LOAD] Đọc file: {Path.GetFileName(filePath)}");
+                
+                var lines = File.ReadAllLines(filePath);
+                var apiKeys = new List<string>();
+                
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+                    if (!string.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith("#"))
+                    {
+                        apiKeys.Add(trimmedLine);
+                    }
+                }
+                
+                WriteLog($"[KEY_LOAD] Đã đọc {lines.Length} dòng, tìm thấy {apiKeys.Count} API keys hợp lệ");
+                return apiKeys;
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"[KEY_LOAD_ERROR] Lỗi khi đọc file: {ex.Message}");
+                throw new Exception($"Không thể đọc file: {ex.Message}");
+            }
+        }
+
+        private void UpdateKeyStateFile(List<string> apiKeys)
+        {
+            try
+            {
+                WriteLog("[KEY_LOAD] Cập nhật file ElevenlabKeyState.yaml...");
+
+                var keyStatePath = Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ElevenlabKeyState.yaml");
+
+                // Create new key state with loaded keys
+                var newKeyState = new ElevenlabKeyState
+                {
+                    ApiKeys = apiKeys.Select(key => new ApiKeyInfo
+                    {
+                        Key = key,
+                        Available = true,
+                        UsedCount = 0,
+                        Priority = 0,
+                        CooldownUntil = null
+                    }).ToList(),
+                    LastSaved = DateTime.UtcNow,
+                    KeySelectionAlgorithm = _elevenLabConfig.KeySelectionAlgorithm
+                };
+
+                // Serialize and save to file
+                var yamlContent = YamlUtility.Serialize(newKeyState);
+                File.WriteAllText(keyStatePath, yamlContent);
+
+                // Update the in-memory key state
+                _elevenLabKeyState = newKeyState;
+
+                WriteLog($"[KEY_LOAD] Đã cập nhật thành công file key state với {apiKeys.Count} keys");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"[KEY_LOAD_ERROR] Lỗi khi cập nhật file key state: {ex.Message}");
+                throw new Exception($"Không thể cập nhật file key state: {ex.Message}");
+            }
+        }
+
+        private void RefreshApiKeyManager(List<string> apiKeys)
+        {
+            try
+            {
+                WriteLog("[KEY_LOAD] Làm mới ApiKeyManager...");
+
+                // Dispose old manager
+                (_apiKeyManager as IDisposable)?.Dispose();
+
+                // Create new ApiKeyInfo objects
+                var apiKeyInfos = apiKeys.Select(key => new ApiKeyInfo
+                {
+                    Key = key,
+                    Available = true,
+                    UsedCount = 0,
+                    Priority = 0,
+                    CooldownUntil = null
+                }).ToList();
+
+                // Create new ApiKeyManager
+                _apiKeyManager = new ApiKeyManager(
+                    apiKeyInfos,
+                    _elevenLabConfig.KeySelectionAlgorithm,
+                    TimeSpan.FromMinutes(_elevenLabConfig.QuotaResetTimeMinutes),
+                    Path.Combine($"{Directory.GetCurrentDirectory()}/Configs", "ElevenlabKeyState.yaml")
+                );
+
+                WriteLog($"[KEY_LOAD] Đã làm mới thành công ApiKeyManager với {apiKeys.Count} keys");
+                WriteLog($"[KEY_STATE] {_apiKeyManager.GetKeyStatusSummary()}");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"[KEY_LOAD_ERROR] Lỗi khi làm mới ApiKeyManager: {ex.Message}");
+                throw new Exception($"Không thể làm mới ApiKeyManager: {ex.Message}");
+            }
+        }
+
+        ~ElevenlabVoiceControl()
+        {
+            // Dispose ApiKeyManager to save final state
+            (_apiKeyManager as IDisposable)?.Dispose();
         }
     }
 }

@@ -5,7 +5,7 @@ namespace SRT2Speech.Core.Utilitys
 {
     public class YamlUtility
     {
-        private static IDeserializer builder
+        private static IDeserializer deserializer
         {
             get
             {
@@ -15,9 +15,24 @@ namespace SRT2Speech.Core.Utilitys
             }
         }
 
+        private static ISerializer serializer
+        {
+            get
+            {
+                return new SerializerBuilder()
+                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                        .Build();
+            }
+        }
+
         public static T Deserialize<T>(string data)
         {
-            return builder.Deserialize<T>(data);
+            return deserializer.Deserialize<T>(data);
+        }
+
+        public static string Serialize<T>(T data)
+        {
+            return serializer.Serialize(data);
         }
     }
 }

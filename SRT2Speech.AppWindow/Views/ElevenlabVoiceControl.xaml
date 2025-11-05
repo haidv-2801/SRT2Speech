@@ -17,6 +17,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="40" />
@@ -61,6 +62,13 @@
                     Content="Dowload MP3 Error"
                     Width="120"
                     Click="Button_DowloadError" />
+            <Button Grid.Row="0"
+                    Grid.Column="5"
+                    x:Name="btnLoadApiKeys"
+                    Margin="10,0,0,10"
+                    Content="Load API Keys"
+                    Width="100"
+                    Click="Button_LoadApiKeys" />
         </Grid>
         <Grid Margin="10"
               Grid.IsSharedSizeScope="True">

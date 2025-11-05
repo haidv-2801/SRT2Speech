@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SRT2Speech.AppWindow.Services;
 
 namespace SRT2Speech.AppWindow.Models
 {
@@ -13,7 +14,8 @@ namespace SRT2Speech.AppWindow.Models
         public string OptimizeStreamingLatency { get; set; } = "0"; // Latency optimization
         public string OutputFormat { get; set; } = "mp3_22050_32"; // Output format
         public string ModelId { get; set; } = "eleven_turbo_v2"; // Model ID
-        public string ApiKey { get; set; } = default!;
+        public KeySelectionAlgorithm KeySelectionAlgorithm { get; set; } = KeySelectionAlgorithm.RoundRobin;
+        public int QuotaResetTimeMinutes { get; set; } = 60; // Default cooldown period in minutes
         public int MaxThreads { get; set; }
         public int SleepTime { get; set; }
         public string LanguageCode { get; set; } = default!;
