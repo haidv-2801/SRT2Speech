@@ -1,0 +1,97 @@
+# Proxy Configuration for SRT2Speech
+# Cấu hình proxy rotation để tránh rate limiting khi gọi TTS APIs
+
+Version: '1.0'
+LoadedAt: 2024-01-01T00:00:00Z
+
+Settings:
+  DefaultStrategy: RoundRobin # RoundRobin, Random, LeastUsed, Weighted, Smart
+  EnableHealthCheck: true
+  HealthCheckIntervalSeconds: 30
+  HealthCheckUrl: https://httpbin.org/ip
+  HealthCheckTimeoutSeconds: 10
+  MaxRetries: 3
+  RetryDelayMilliseconds: 1000
+  DefaultCooldownMinutes: 5
+  MaxConsecutiveFailures: 5
+  EnableStatePersistence: true
+  StateSaveIntervalMinutes: 5
+  StateFilePath: Configs/proxy-state.yaml
+  EnableDetailedLogging: false
+
+# Danh sách proxy
+# Lưu ý: Đây là ví dụ mẫu, cần thay thế bằng proxy thật từ dịch vụ như Bright Data, Oxylabs, etc.
+Proxies:
+  # Proxy mẫu 1 - HTTP proxy với authentication
+  - Id: proxy-001
+    Name: BrightData-US-1
+    Host: brd.superproxy.io
+    Port: 22225
+    Type: HTTP # HTTP, HTTPS, SOCKS5
+    Username: your-username-here
+    Password: your-password-here
+    Status: Active
+    Priority: 100
+    Weight: 100
+    Tags:
+      Region: US
+      Provider: BrightData
+
+  # Proxy mẫu 2 - HTTP proxy không authentication
+  - Id: proxy-002
+    Name: LocalProxy-1
+    Host: 192.168.1.100
+    Port: 8080
+    Type: HTTP
+    Username: null
+    Password: null
+    Status: Active
+    Priority: 90
+    Weight: 80
+    Tags:
+      Region: Local
+      Provider: Internal
+
+  # Proxy mẫu 3 - SOCKS5 proxy
+  - Id: proxy-003
+    Name: Oxylabs-EU-1
+    Host: proxy.oxylabs.io
+    Port: 7777
+    Type: SOCKS5
+    Username: customer-user
+    Password: customer-pass
+    Status: Active
+    Priority: 100
+    Weight: 100
+    Tags:
+      Region: EU
+      Provider: Oxylabs
+
+  # Proxy mẫu 4 - Disabled proxy
+  - Id: proxy-004
+    Name: TestProxy-Disabled
+    Host: test.proxy.io
+    Port: 3128
+    Type: HTTP
+    Username: null
+    Password: null
+    Status: Disabled
+    Priority: 50
+    Weight: 50
+    Tags:
+      Region: Test
+      Provider: Test
+# Hướng dẫn sử dụng:
+# 1. Thay thế proxy mẫu bằng proxy thật từ provider của bạn
+# 2. Cấu hình Username/Password nếu proxy yêu cầu authentication
+# 3. Set Status = Active cho proxy muốn sử dụng
+# 4. Set Status = Disabled cho proxy tạm thời không dùng
+# 5. Điều chỉnh Priority và Weight cho weighted rotation strategy
+# 6. Thêm Tags để dễ quản lý và phân loại proxy
+
+# Các provider proxy phổ biến:
+# - Bright Data (https://brightdata.com)
+# - Oxylabs (https://oxylabs.io)
+# - Smartproxy (https://smartproxy.com)
+# - ProxyMesh (https://proxymesh.com)
+# - IPRoyal (https://iproyal.com)

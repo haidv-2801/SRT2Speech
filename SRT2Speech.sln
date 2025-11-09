@@ -15,6 +15,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SRT2Speech.WebAPI", "SRT2Sp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.LicenseManager", "SRT2Speech.LicenseManager\SRT2Speech.LicenseManager.csproj", "{1B9FB5B8-C998-4A03-A91F-D2ECC79DC8B8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SRT2Speech.ProxyService", "SRT2Speech.ProxyService\SRT2Speech.ProxyService.csproj", "{F62B6A86-8896-4B8B-BD88-A848045471DA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -149,6 +151,26 @@ Global
 		{1B9FB5B8-C998-4A03-A91F-D2ECC79DC8B8}.Release|x64.Build.0 = Release|Any CPU
 		{1B9FB5B8-C998-4A03-A91F-D2ECC79DC8B8}.Release|x86.ActiveCfg = Release|Any CPU
 		{1B9FB5B8-C998-4A03-A91F-D2ECC79DC8B8}.Release|x86.Build.0 = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|ARM.Build.0 = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|x64.Build.0 = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Debug|x86.Build.0 = Debug|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|ARM.ActiveCfg = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|ARM.Build.0 = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|ARM64.Build.0 = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|x64.ActiveCfg = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|x64.Build.0 = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|x86.ActiveCfg = Release|Any CPU
+		{F62B6A86-8896-4B8B-BD88-A848045471DA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
