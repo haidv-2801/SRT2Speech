@@ -1,0 +1,294 @@
+proxies:
+- id: 65f3f815-89ec-436a-aa50-e4700cf2744c
+  name: Binding 216.10.27.159:6837
+  host: 216.10.27.159
+  port: 6837
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:22.3144343Z
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 51
+    lastSuccessTime: 2025-11-09T11:21:22.3144341Z
+    averageResponseTime: 2440.190232258484
+    successRate: 100
+    healthScore: 70
+  usedCount: 1
+  lastUsed: 2025-11-09T10:51:48.6820692Z
+  lastHealthCheck: 2025-11-09T11:21:20.3461708Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 0841d04c-f2b0-47b0-9abd-3fccfa01cf4f
+  name: Binding 23.95.150.145:6114
+  host: 23.95.150.145
+  port: 6114
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:22.8962522Z
+    consecutiveFailures: 0
+    totalFailures: 1
+    lastFailureTime: 2025-11-09T10:53:30.5398702Z
+    lastFailureReason: The request was canceled due to the configured HttpClient.Timeout of 10 seconds elapsing.
+    totalSuccesses: 50
+    lastSuccessTime: 2025-11-09T11:21:22.8962519Z
+    averageResponseTime: 3064.8859668767345
+    successRate: 98.0392156862745
+    healthScore: 68
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3517497Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 81e201e6-b148-4f8a-9ab3-764be7785eec
+  name: Binding 198.23.239.134:6540
+  host: 198.23.239.134
+  port: 6540
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:24.6181699Z
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 51
+    lastSuccessTime: 2025-11-09T11:21:24.6181692Z
+    averageResponseTime: 3886.8015073893175
+    successRate: 100
+    healthScore: 70
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3524868Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 64e9f4d5-a98f-4c23-93b7-cb88de0f33fc
+  name: Binding 31.59.20.176:6754
+  host: 31.59.20.176
+  port: 6754
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:23.3563345Z
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 51
+    lastSuccessTime: 2025-11-09T11:21:23.3563343Z
+    averageResponseTime: 2708.0813961254753
+    successRate: 100
+    healthScore: 70
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3534720Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 1fd2c523-5e4a-4d75-98a7-9a8f248a5694
+  name: Binding 107.172.163.27:6543
+  host: 107.172.163.27
+  port: 6543
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:22.9079745Z
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 51
+    lastSuccessTime: 2025-11-09T11:21:22.9079742Z
+    averageResponseTime: 3847.9711521792397
+    successRate: 100
+    healthScore: 70
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3541800Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 45baab1e-80bb-4b8f-b784-1306bca2f01e
+  name: Binding 45.38.107.97:6014
+  host: 45.38.107.97
+  port: 6014
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:22.9120057Z
+    consecutiveFailures: 0
+    totalFailures: 9
+    lastFailureTime: 2025-11-09T11:20:50.3305644Z
+    lastFailureReason: The request was canceled due to the configured HttpClient.Timeout of 10 seconds elapsing.
+    totalSuccesses: 42
+    lastSuccessTime: 2025-11-09T11:21:22.9120054Z
+    averageResponseTime: 2897.2654918562357
+    successRate: 82.35294117647058
+    healthScore: 57
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3603594Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: a06db9f3-771e-407c-8e3e-270135bac006
+  name: Binding 198.105.121.200:6462
+  host: 198.105.121.200
+  port: 6462
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:23.0763573Z
+    consecutiveFailures: 0
+    totalFailures: 5
+    lastFailureTime: 2025-11-09T11:18:20.5349026Z
+    lastFailureReason: The request was canceled due to the configured HttpClient.Timeout of 10 seconds elapsing.
+    totalSuccesses: 46
+    lastSuccessTime: 2025-11-09T11:21:23.0763572Z
+    averageResponseTime: 3876.7919912883594
+    successRate: 90.19607843137256
+    healthScore: 63
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3613603Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 45357a9b-e48a-4bf2-81c6-80b4de191460
+  name: Binding 142.111.48.253:7030
+  host: 142.111.48.253
+  port: 7030
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:22.0450884Z
+    consecutiveFailures: 0
+    totalFailures: 1
+    lastFailureTime: 2025-11-09T11:02:07.5638166Z
+    lastFailureReason: HTTP BadGateway
+    totalSuccesses: 50
+    lastSuccessTime: 2025-11-09T11:21:22.0450880Z
+    averageResponseTime: 2320.868590237097
+    successRate: 98.0392156862745
+    healthScore: 68
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3684634Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 95537fb0-82e6-4c24-9b26-37579f312c32
+  name: Binding 142.111.67.146:5611
+  host: 142.111.67.146
+  port: 5611
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:23.0887452Z
+    consecutiveFailures: 0
+    totalFailures: 4
+    lastFailureTime: 2025-11-09T11:14:15.5460402Z
+    lastFailureReason: An error occurred while establishing a connection to the proxy tunnel.
+    totalSuccesses: 47
+    lastSuccessTime: 2025-11-09T11:21:23.0887450Z
+    averageResponseTime: 2465.4348804911674
+    successRate: 92.15686274509804
+    healthScore: 64
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3696414Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: d1a4d1ba-b12c-47d7-8a9a-5477c49bb528
+  name: Binding 64.137.96.74:6641
+  host: 64.137.96.74
+  port: 6641
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 2025-11-09T11:21:22.7669975Z
+    consecutiveFailures: 0
+    totalFailures: 2
+    lastFailureTime: 2025-11-09T11:17:06.3808534Z
+    lastFailureReason: HTTP BadGateway
+    totalSuccesses: 49
+    lastSuccessTime: 2025-11-09T11:21:22.7669964Z
+    averageResponseTime: 2903.859932382915
+    successRate: 96.07843137254902
+    healthScore: 67
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 2025-11-09T11:21:20.3706458Z
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+lastSaved: 2025-11-09T11:21:37.7972627Z
+strategy: RoundRobin
+metrics: {}

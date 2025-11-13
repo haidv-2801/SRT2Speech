@@ -16,6 +16,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="40"/>
@@ -64,6 +65,39 @@
                     Content="Load API Keys"
                     Width="100"
                     Command="{Binding LoadApiKeysCommand}"/>
+            <Button Grid.Row="0"
+                    Grid.Column="6"
+                    x:Name="btnImportProxies"
+                    Margin="10,0,0,10"
+                    Content="Import Proxies"
+                    Width="110"
+                    Command="{Binding ImportProxiesCommand}"/>
+        </Grid>
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <ProgressBar Grid.Row="0"
+                         Height="16"
+                         Minimum="0"
+                         Maximum="{Binding TotalCount, Mode=OneWay}"
+                         Value="{Binding ProcessedCount, Mode=OneWay}"/>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,5,0,0">
+                <TextBlock Text="{Binding ProcessedCount}"/>
+                <TextBlock Text="/" Margin="2,0,0,0"/>
+                <TextBlock Text="{Binding TotalCount}"/>
+                <TextBlock Text=" (" Margin="5,0,0,0"/>
+                <TextBlock Text="{Binding ProgressPercent, StringFormat={}{0:F1}%}"/>
+                <TextBlock Text=")  Errors: " Margin="5,0,0,0"/>
+                <TextBlock Text="{Binding ErrorCount}"/>
+                <TextBlock Text="   " />
+                <TextBlock Text="{Binding StatusText}" Margin="10,0,0,0"/>
+                <Button Content="Stop"
+                        Command="{Binding StopCommand}"
+                        Margin="10,0,0,0"
+                        Width="60"/>
+            </StackPanel>
         </Grid>
         <Grid Margin="10">
             <Grid.RowDefinitions>

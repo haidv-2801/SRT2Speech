@@ -6,6 +6,7 @@ using SRT2Speech.ProxyService.Exceptions;
 using SRT2Speech.ProxyService.HttpHandlers;
 using SRT2Speech.ProxyService.Interfaces;
 using SRT2Speech.ProxyService.Models;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace SRT2Speech.ProxyService.Services;
 
@@ -188,12 +189,16 @@ public class ProxyManager : IProxyManager, IDisposable
 
         try
         {
-            // Load từ file và update pool
-            var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", "proxies.yaml");
-            if (File.Exists(configPath))
+            // Ưu tiên load từ tệp nguồn trong dự án, fallback sang tệp runtime
+            var workspacePath = Path.Combine(Directory.GetCurrentDirectory(), "SRT2Speech.AppWindow", "Configs", "proxies.yaml");
+            var runtimePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", "proxies.yaml");
+
+            var configPathToRead = File.Exists(workspacePath) ? workspacePath : runtimePath;
+
+            if (File.Exists(configPathToRead))
             {
-                var yaml = await File.ReadAllTextAsync(configPath);
-                var config = YamlUtility.Deserialize<ProxyConfiguration>(yaml);
+                var yaml = await File.ReadAllTextAsync(configPathToRead);
+                var config = YamlUtility.DeserializeAuto<ProxyConfiguration>(yaml);
 
                 _proxyPool.Clear();
                 foreach (var proxy in config.Proxies)
@@ -201,17 +206,101 @@ public class ProxyManager : IProxyManager, IDisposable
                     _proxyPool.AddProxy(proxy);
                 }
 
-                _logger.LogInformation("Đã reload {Count} proxies", config.Proxies.Count);
+                _logger.LogInformation("Đã reload {Count} proxies từ {Path}", config.Proxies.Count, configPathToRead);
             }
             else
             {
-                _logger.LogWarning("Không tìm thấy file config tại {Path}", configPath);
+                _logger.LogWarning("Không tìm thấy file config tại {Path}", configPathToRead);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Lỗi khi reload configuration");
             throw new ProxyConfigurationException("Lỗi khi reload configuration", ex);
+        }
+    }
+
+    /// <summary>
+    /// Nhập khẩu danh sách proxy binding dạng ip:port:username:password và replace toàn bộ Proxies trong file cấu hình.
+    /// Trả về số lượng proxy hợp lệ đã import.
+    /// </summary>
+    public async Task<int> ImportBindingsAsync(IEnumerable<string> lines, CancellationToken cancellationToken = default)
+    {
+        if (lines == null) throw new ArgumentNullException(nameof(lines));
+
+        // Parse danh sách binding và loại trùng theo Host:Port
+        var parsedProxies = ProxyBindingParser.ParseLines(lines, _logger);
+
+        if (parsedProxies.Count == 0)
+        {
+            _logger.LogWarning("Không có proxy hợp lệ để import từ danh sách binding.");
+            return 0;
+        }
+
+        try
+        {
+            // Xác định đường dẫn tệp cấu hình ưu tiên (nguồn dự án) và tệp runtime
+            var workspacePath = Path.Combine(Directory.GetCurrentDirectory(), "Configs", "proxies.yaml");
+            var runtimePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", "proxies.yaml");
+
+            // Đọc cấu hình hiện có từ nguồn ưu tiên nếu có, fallback runtime
+            ProxyConfiguration config;
+            var readPath = File.Exists(workspacePath) ? workspacePath : runtimePath;
+
+            if (!string.IsNullOrEmpty(readPath) && File.Exists(readPath))
+            {
+                var yamlIn = await File.ReadAllTextAsync(readPath, cancellationToken);
+                config = YamlUtility.DeserializeAuto<ProxyConfiguration>(yamlIn);
+            }
+            else
+            {
+                config = new ProxyConfiguration
+                {
+                    Settings = new ProxyServiceSettings(),
+                    LoadedAt = DateTime.UtcNow,
+                    Version = "1.0"
+                };
+            }
+
+            // Replace toàn bộ danh sách Proxies, giữ nguyên Settings/Version/LoadedAt như yêu cầu
+            config.Proxies = parsedProxies;
+
+            var yamlOut = YamlUtility.SerializeToHyphenated(config);
+
+            // Ghi vào tệp nguồn dự án nếu có thể
+            var workspaceDir = Path.GetDirectoryName(workspacePath);
+            if (!string.IsNullOrEmpty(workspaceDir) && !Directory.Exists(workspaceDir))
+            {
+                Directory.CreateDirectory(workspaceDir);
+            }
+            try
+            {
+                await File.WriteAllTextAsync(workspacePath, yamlOut, cancellationToken);
+                _logger.LogInformation("Đã import {Count} proxies và cập nhật tệp nguồn: {Path}", parsedProxies.Count, workspacePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Không thể ghi tệp nguồn tại {Path}, sẽ tiếp tục với tệp runtime", workspacePath);
+            }
+
+            // Đồng bộ tệp runtime để đảm bảo app chạy có cấu hình mới
+            var runtimeDir = Path.GetDirectoryName(runtimePath);
+            if (!string.IsNullOrEmpty(runtimeDir) && !Directory.Exists(runtimeDir))
+            {
+                Directory.CreateDirectory(runtimeDir);
+            }
+            await File.WriteAllTextAsync(runtimePath, yamlOut, cancellationToken);
+            _logger.LogInformation("Đã đồng bộ tệp runtime: {Path}", runtimePath);
+
+            // Reload cấu hình vào pool để áp dụng ngay
+            await ReloadConfigurationAsync();
+
+            return parsedProxies.Count;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi import danh sách proxy binding");
+            throw new ProxyConfigurationException("Lỗi khi import danh sách proxy binding", ex);
         }
     }
 
@@ -223,11 +312,11 @@ public class ProxyManager : IProxyManager, IDisposable
         if (_settings.EnableStatePersistence)
         {
             // Load state từ file nếu có
-            LoadState();
+            //LoadState();
 
             // Setup auto-save timer
             var interval = TimeSpan.FromMinutes(_settings.StateSaveIntervalMinutes);
-            _stateSaveTimer = new Timer(_ => SaveState(), null, interval, interval);
+            //_stateSaveTimer = new Timer(_ => SaveState(), null, interval, interval);
         }
     }
 
@@ -242,7 +331,7 @@ public class ProxyManager : IProxyManager, IDisposable
             if (File.Exists(statePath))
             {
                 var yaml = File.ReadAllText(statePath);
-                var state = YamlUtility.Deserialize<ProxyState>(yaml);
+                var state = YamlUtility.DeserializeAuto<ProxyState>(yaml);
 
                 // Update proxy states
                 foreach (var savedProxy in state.Proxies)
@@ -282,7 +371,7 @@ public class ProxyManager : IProxyManager, IDisposable
                 Metrics = _metricsCollector.GetAllMetrics()
             };
 
-            var yaml = YamlUtility.Serialize(state);
+            var yaml = YamlUtility.SerializeToHyphenated(state);
             var statePath = _settings.StateFilePath;
             var directory = Path.GetDirectoryName(statePath);
 

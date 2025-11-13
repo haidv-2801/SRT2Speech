@@ -10,6 +10,15 @@ namespace SRT2Speech.AppWindow.Models
         public int UsedCount { get; set; } = 0;
         public int Priority { get; set; } = 0; // Higher value means higher priority
 
+        /// <summary>
+        /// Proxy endpoint được gắn cố định với key này.
+        /// Format hợp lệ:
+        /// - "host:port"
+        /// - "host:port:username:password"
+        /// Nếu null hoặc rỗng: theo yêu cầu business, key sẽ KHÔNG được sử dụng (không fallback).
+        /// </summary>
+        public string? BoundProxyEndpoint { get; set; }
+
         public bool IsAvailable()
         {
             return Available && (CooldownUntil == null || DateTime.UtcNow >= CooldownUntil);

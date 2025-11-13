@@ -63,4 +63,10 @@ public interface IProxyManager
     /// Reload configuration từ file
     /// </summary>
     Task ReloadConfigurationAsync();
+
+    /// <summary>
+    /// Nhập khẩu danh sách proxy binding dạng ip:port:username:password và replace toàn bộ Proxies trong file cấu hình.
+    /// Trả về số lượng proxy hợp lệ đã import.
+    /// </summary>
+    Task<int> ImportBindingsAsync(IEnumerable<string> lines, CancellationToken cancellationToken = default);
 }

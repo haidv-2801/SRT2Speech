@@ -1,97 +1,307 @@
-# Proxy Configuration for SRT2Speech
-# Cấu hình proxy rotation để tránh rate limiting khi gọi TTS APIs
-
-Version: '1.0'
-LoadedAt: 2024-01-01T00:00:00Z
-
-Settings:
-  DefaultStrategy: RoundRobin # RoundRobin, Random, LeastUsed, Weighted, Smart
-  EnableHealthCheck: true
-  HealthCheckIntervalSeconds: 30
-  HealthCheckUrl: https://httpbin.org/ip
-  HealthCheckTimeoutSeconds: 10
-  MaxRetries: 3
-  RetryDelayMilliseconds: 1000
-  DefaultCooldownMinutes: 5
-  MaxConsecutiveFailures: 5
-  EnableStatePersistence: true
-  StateSaveIntervalMinutes: 5
-  StateFilePath: Configs/proxy-state.yaml
-  EnableDetailedLogging: false
-
-# Danh sách proxy
-# Lưu ý: Đây là ví dụ mẫu, cần thay thế bằng proxy thật từ dịch vụ như Bright Data, Oxylabs, etc.
-Proxies:
-  # Proxy mẫu 1 - HTTP proxy với authentication
-  - Id: proxy-001
-    Name: BrightData-US-1
-    Host: brd.superproxy.io
-    Port: 22225
-    Type: HTTP # HTTP, HTTPS, SOCKS5
-    Username: your-username-here
-    Password: your-password-here
-    Status: Active
-    Priority: 100
-    Weight: 100
-    Tags:
-      Region: US
-      Provider: BrightData
-
-  # Proxy mẫu 2 - HTTP proxy không authentication
-  - Id: proxy-002
-    Name: LocalProxy-1
-    Host: 192.168.1.100
-    Port: 8080
-    Type: HTTP
-    Username: null
-    Password: null
-    Status: Active
-    Priority: 90
-    Weight: 80
-    Tags:
-      Region: Local
-      Provider: Internal
-
-  # Proxy mẫu 3 - SOCKS5 proxy
-  - Id: proxy-003
-    Name: Oxylabs-EU-1
-    Host: proxy.oxylabs.io
-    Port: 7777
-    Type: SOCKS5
-    Username: customer-user
-    Password: customer-pass
-    Status: Active
-    Priority: 100
-    Weight: 100
-    Tags:
-      Region: EU
-      Provider: Oxylabs
-
-  # Proxy mẫu 4 - Disabled proxy
-  - Id: proxy-004
-    Name: TestProxy-Disabled
-    Host: test.proxy.io
-    Port: 3128
-    Type: HTTP
-    Username: null
-    Password: null
-    Status: Disabled
-    Priority: 50
-    Weight: 50
-    Tags:
-      Region: Test
-      Provider: Test
-# Hướng dẫn sử dụng:
-# 1. Thay thế proxy mẫu bằng proxy thật từ provider của bạn
-# 2. Cấu hình Username/Password nếu proxy yêu cầu authentication
-# 3. Set Status = Active cho proxy muốn sử dụng
-# 4. Set Status = Disabled cho proxy tạm thời không dùng
-# 5. Điều chỉnh Priority và Weight cho weighted rotation strategy
-# 6. Thêm Tags để dễ quản lý và phân loại proxy
-
-# Các provider proxy phổ biến:
-# - Bright Data (https://brightdata.com)
-# - Oxylabs (https://oxylabs.io)
-# - Smartproxy (https://smartproxy.com)
-# - ProxyMesh (https://proxymesh.com)
-# - IPRoyal (https://iproyal.com)
+proxies:
+- id: 45357a9b-e48a-4bf2-81c6-80b4de191460
+  name: Binding 142.111.48.253:7030
+  host: 142.111.48.253
+  port: 7030
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 64e9f4d5-a98f-4c23-93b7-cb88de0f33fc
+  name: Binding 31.59.20.176:6754
+  host: 31.59.20.176
+  port: 6754
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 0841d04c-f2b0-47b0-9abd-3fccfa01cf4f
+  name: Binding 23.95.150.145:6114
+  host: 23.95.150.145
+  port: 6114
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 81e201e6-b148-4f8a-9ab3-764be7785eec
+  name: Binding 198.23.239.134:6540
+  host: 198.23.239.134
+  port: 6540
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 45baab1e-80bb-4b8f-b784-1306bca2f01e
+  name: Binding 45.38.107.97:6014
+  host: 45.38.107.97
+  port: 6014
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 1fd2c523-5e4a-4d75-98a7-9a8f248a5694
+  name: Binding 107.172.163.27:6543
+  host: 107.172.163.27
+  port: 6543
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: a06db9f3-771e-407c-8e3e-270135bac006
+  name: Binding 198.105.121.200:6462
+  host: 198.105.121.200
+  port: 6462
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: d1a4d1ba-b12c-47d7-8a9a-5477c49bb528
+  name: Binding 64.137.96.74:6641
+  host: 64.137.96.74
+  port: 6641
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 65f3f815-89ec-436a-aa50-e4700cf2744c
+  name: Binding 216.10.27.159:6837
+  host: 216.10.27.159
+  port: 6837
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+- id: 95537fb0-82e6-4c24-9b26-37579f312c32
+  name: Binding 142.111.67.146:5611
+  host: 142.111.67.146
+  port: 5611
+  type: SOCKS5
+  username: jxhrdjlg
+  password: jfixpgp3g25u
+  status: Active
+  health:
+    isHealthy: true
+    lastHealthyTime: 
+    consecutiveFailures: 0
+    totalFailures: 0
+    lastFailureTime: 
+    lastFailureReason: 
+    totalSuccesses: 0
+    lastSuccessTime: 
+    averageResponseTime: 0
+    successRate: 0
+    healthScore: 100
+  usedCount: 0
+  lastUsed: 
+  lastHealthCheck: 
+  priority: 100
+  weight: 100
+  cooldownUntil: 
+  tags:
+    Provider: Binding
+    Region: Unknown
+settings:
+  defaultStrategy: RoundRobin
+  enableHealthCheck: true
+  healthCheckIntervalSeconds: 30
+  healthCheckUrl: https://httpbin.org/ip
+  healthCheckTimeoutSeconds: 10
+  maxRetries: 3
+  retryDelayMilliseconds: 1000
+  defaultCooldownMinutes: 5
+  maxConsecutiveFailures: 5
+  enableStatePersistence: true
+  stateSaveIntervalMinutes: 5
+  stateFilePath: Configs/proxy-state.yaml
+  enableDetailedLogging: false
+loadedAt: 2025-11-09T10:35:53.6879994Z
+version: 1.0

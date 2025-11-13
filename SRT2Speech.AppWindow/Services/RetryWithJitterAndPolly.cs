@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SRT2Speech.AppWindow.Services
@@ -32,6 +33,35 @@ namespace SRT2Speech.AppWindow.Services
         public static async Task ExecuteWithRetryAndJitterAsync(Func<Task> operation, int maxRetries = 5, int baseDelayMs = 1000, double jitterFactor = 0.5)
         {
             await ExecuteWithRetryAndJitterAsync(() => Task.Run(operation), maxRetries, baseDelayMs, jitterFactor);
+        }
+
+        // Overload hỗ trợ CancellationToken để có thể hủy ngay lập tức cả thời gian chờ giữa các lần retry
+        public static async Task<TResult> ExecuteWithRetryAndJitterAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> operation,
+            Func<TResult, bool> isResultValid,
+            CancellationToken ct,
+            int maxRetries = 5,
+            int baseDelayMs = 1000,
+            double jitterFactor = 0.5)
+        {
+            Random jitterer = new Random();
+            var retryPolicy = Policy
+                .Handle<HttpRequestException>()
+                .OrResult<TResult>(r => !isResultValid(r))
+                .WaitAndRetryAsync(
+                    maxRetries,
+                    retryAttempt =>
+                    {
+                        var baseDelay = TimeSpan.FromMilliseconds(baseDelayMs * Math.Pow(2, retryAttempt));
+                        var jitter = TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * (jitterFactor * (new Random().NextDouble() * 2 - 1)));
+                        var delay = baseDelay + jitter;
+                        Console.WriteLine($"Delay {delay}");
+                        return delay;
+                    }
+                );
+
+            // Lưu ý: Không bắt TaskCanceledException/OperationCanceledException tại đây để cho phép hủy ngay lập tức
+            return await retryPolicy.ExecuteAsync((token) => operation(token), ct);
         }
     }
 }

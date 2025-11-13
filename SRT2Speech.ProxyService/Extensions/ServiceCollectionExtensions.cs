@@ -8,6 +8,7 @@ using SRT2Speech.ProxyService.Interfaces;
 using SRT2Speech.ProxyService.Models;
 using SRT2Speech.ProxyService.Services;
 using SRT2Speech.ProxyService.Strategies;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace SRT2Speech.ProxyService.Extensions;
 
@@ -28,9 +29,9 @@ public static class ServiceCollectionExtensions
             configuration.GetSection("ProxyService"));
 
         // Register core services
+        services.AddSingleton<IProxyManager, ProxyManager>();
         services.AddSingleton<IProxyPool, ProxyPool>();
         services.AddSingleton<IProxyMetricsCollector, ProxyMetricsCollector>();
-        services.AddSingleton<IProxyManager, ProxyManager>();
 
         // Register health checker as hosted service
         services.AddHostedService<ProxyHealthChecker>();
@@ -81,17 +82,18 @@ public static class ServiceCollectionExtensions
     /// </summary>
     private static void LoadProxyConfiguration(IServiceCollection services, IConfiguration configuration)
     {
-        var configPath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "Configs",
-            "proxies.yaml");
+        // Ưu tiên đọc tệp cấu hình tại SRT2Speech.AppWindow/Configs/proxies.yaml (tệp nguồn),
+        // nếu không tồn tại thì fallback sang tệp runtime tại BaseDirectory/Configs/proxies.yaml
+        var runtimePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", "proxies.yaml");
+        var workspacePath = Path.Combine(Directory.GetCurrentDirectory(), "SRT2Speech.AppWindow", "Configs", "proxies.yaml");
+        var configPath = File.Exists(workspacePath) ? workspacePath : runtimePath;
 
         if (File.Exists(configPath))
         {
             try
             {
                 var yaml = File.ReadAllText(configPath);
-                var config = YamlUtility.Deserialize<ProxyConfiguration>(yaml);
+                var config = YamlUtility.DeserializeAuto<ProxyConfiguration>(yaml);
 
                 // Create a temporary service provider to get the proxy pool
                 var serviceProvider = services.BuildServiceProvider();
@@ -108,8 +110,12 @@ public static class ServiceCollectionExtensions
             catch (Exception ex)
             {
                 // Log error but don't throw - allow app to start without proxies
-                Console.WriteLine($"Warning: Could not load proxy configuration: {ex.Message}");
+                Console.WriteLine($"Warning: Could not load proxy configuration from {configPath}: {ex.Message}");
             }
+        }
+        else
+        {
+            Console.WriteLine($"Warning: proxies.yaml not found at {configPath}");
         }
     }
 }

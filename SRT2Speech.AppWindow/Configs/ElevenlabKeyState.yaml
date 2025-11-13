@@ -1,0 +1,29 @@
+# ElevenLabs API Key State
+# Trạng thái và cấu hình các API keys cho ElevenLabs
+
+apiKeys:
+  - key: 'sk_6c38fb94e48e584eb1ca040e5dd44c70714898fa3e76bbdd'
+    available: true
+    usedCount: 0
+    priority: 100
+    boundProxyEndpoint: 'brd.superproxy.io:22225:brd-customer-xyz:your-password'
+    cooldownUntil: null
+
+lastSaved: 2025-11-10T13:28:00Z
+keySelectionAlgorithm: RoundRobin
+# Notes:
+# - key: API key của ElevenLabs
+# - available: Trạng thái có sẵn của key
+# - used-count: Số lần đã sử dụng key
+# - priority: Độ ưu tiên (càng cao càng được ưu tiên)
+# - bound-proxy-endpoint: Proxy endpoint gắn với key này
+#   Format: "host:port" hoặc "host:port:username:password"
+# - cooldown-until: Thời gian key hết hạn cooldown (nếu có)
+# - key-selection-algorithm: Thuật toán chọn key
+#   Options: RoundRobin, Random, LeastUsed, WeightedRandom, PriorityBased, LoadBalanced
+
+# Cấu hình proxy mẫu:
+# - Bright Data: "brd.superproxy.io:22225:customer-username:customer-password"
+# - Oxylabs: "proxy.oxylabs.io:7777:customer-username:customer-password"
+# - Local proxy: "192.168.1.100:8080"
+# - SOCKS5 proxy: "socks5.proxy.com:1080:username:password"

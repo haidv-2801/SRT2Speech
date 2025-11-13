@@ -23,13 +23,6 @@ namespace SRT2Speech.AppWindow.Models
         
         // Proxy configuration
         public bool EnableProxyRotation { get; set; } = false;
-        public string ProxyRotationStrategy { get; set; } = "RoundRobin";
-        public int ProxyMaxRetries { get; set; } = 3;
-        public int ProxyRetryDelayMilliseconds { get; set; } = 1000;
-        public bool EnableProxyHealthCheck { get; set; } = true;
-        public int ProxyHealthCheckIntervalSeconds { get; set; } = 30;
-        public string ProxyHealthCheckUrl { get; set; } = "https://httpbin.org/ip";
-        public int ProxyHealthCheckTimeoutSeconds { get; set; } = 10;
     }
 
     public class VoiceSettings

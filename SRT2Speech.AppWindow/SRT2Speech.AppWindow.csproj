@@ -14,6 +14,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Configs\*.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SRT2Speech.Core\SRT2Speech.Core.csproj" />
     <ProjectReference Include="..\SRT2Speech.LicenseManager\SRT2Speech.LicenseManager.csproj" />
     <ProjectReference Include="..\SRT2Speech.ProxyService\SRT2Speech.ProxyService.csproj" />

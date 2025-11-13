@@ -3,12 +3,13 @@ using System.Windows;
 using System.Windows.Controls;
 using SRT2Speech.AppWindow.ViewModels;
 using SRT2Speech.ProxyService.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SRT2Speech.AppWindow.Views
 {
     public partial class ElevenlabVoiceControl : UserControl
     {
-        public ElevenlabVoiceControl() : this(null)
+        public ElevenlabVoiceControl()
         {
         }
 

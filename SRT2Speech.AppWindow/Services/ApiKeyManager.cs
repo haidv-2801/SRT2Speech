@@ -7,6 +7,7 @@ using System.Threading;
 using System.Timers;
 using SRT2Speech.AppWindow.Models;
 using SRT2Speech.Core.Utilitys;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace SRT2Speech.AppWindow.Services
 {
@@ -190,7 +191,7 @@ namespace SRT2Speech.AppWindow.Services
             {
                 if (File.Exists(_keyStateFilePath))
                 {
-                    var keyState = YamlUtility.Deserialize<ElevenlabKeyState>(File.ReadAllText(_keyStateFilePath));
+                    var keyState = YamlUtility.DeserializeAuto<ElevenlabKeyState>(File.ReadAllText(_keyStateFilePath));
                     if (keyState?.ApiKeys != null && keyState.ApiKeys.Any())
                     {
                         // Update existing keys with saved state
@@ -203,6 +204,8 @@ namespace SRT2Speech.AppWindow.Services
                                 existingKey.Priority = savedKey.Priority;
                                 existingKey.Available = savedKey.Available;
                                 existingKey.CooldownUntil = savedKey.CooldownUntil;
+                                // Bổ sung ánh xạ BoundProxyEndpoint từ state
+                                existingKey.BoundProxyEndpoint = savedKey.BoundProxyEndpoint;
                             }
                         }
 
@@ -234,7 +237,7 @@ namespace SRT2Speech.AppWindow.Services
                     KeySelectionAlgorithm = _algorithm
                 };
 
-                var yamlContent = YamlUtility.Serialize(keyState);
+                var yamlContent = YamlUtility.SerializeToHyphenated(keyState);
                 File.WriteAllText(_keyStateFilePath, yamlContent);
                 _hasUnsavedChanges = false;
 
