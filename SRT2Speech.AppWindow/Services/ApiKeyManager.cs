@@ -43,10 +43,10 @@ namespace SRT2Speech.AppWindow.Services
             LoadKeyState();
 
             // Setup periodic save timer (30 seconds)
-            //_saveTimer = new System.Timers.Timer(30000); // 30 seconds
-            //_saveTimer.Elapsed += OnSaveTimerElapsed;
-            //_saveTimer.AutoReset = true;
-            //_saveTimer.Start();
+            _saveTimer = new System.Timers.Timer(30000); // 30 seconds
+            _saveTimer.Elapsed += OnSaveTimerElapsed;
+            _saveTimer.AutoReset = true;
+            _saveTimer.Start();
         }
 
         public ApiKeyInfo? GetAvailableKey()
@@ -204,8 +204,25 @@ namespace SRT2Speech.AppWindow.Services
                                 existingKey.Priority = savedKey.Priority;
                                 existingKey.Available = savedKey.Available;
                                 existingKey.CooldownUntil = savedKey.CooldownUntil;
-                                // Bổ sung ánh xạ BoundProxyEndpoint từ state
-                                existingKey.BoundProxyEndpoint = savedKey.BoundProxyEndpoint;
+                                
+                                // Validate BoundProxyEndpoint before assigning
+                                if (!string.IsNullOrWhiteSpace(savedKey.BoundProxyEndpoint))
+                                {
+                                    if (BoundProxyParser.TryParseBoundEndpoint(
+                                        savedKey.BoundProxyEndpoint, out _, out var error))
+                                    {
+                                        existingKey.BoundProxyEndpoint = savedKey.BoundProxyEndpoint;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"[BINDING_INVALID] Key {savedKey.Key} has invalid BoundProxyEndpoint '{savedKey.BoundProxyEndpoint}': {error}");
+                                        // Don't assign invalid endpoint
+                                    }
+                                }
+                                else
+                                {
+                                    existingKey.BoundProxyEndpoint = savedKey.BoundProxyEndpoint;
+                                }
                             }
                         }
 

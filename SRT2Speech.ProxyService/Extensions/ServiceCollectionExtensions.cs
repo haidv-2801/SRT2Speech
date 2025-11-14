@@ -60,9 +60,6 @@ public static class ServiceCollectionExtensions
         // Register ProxyRetryHandler
         services.AddTransient<ProxyRetryHandler>();
 
-        // Load initial proxy configuration
-        LoadProxyConfiguration(services, configuration);
-
         return services;
     }
 
@@ -75,47 +72,5 @@ public static class ServiceCollectionExtensions
     {
         return services.AddHttpClient(name)
             .AddHttpMessageHandler<ProxyRetryHandler>();
-    }
-
-    /// <summary>
-    /// Load proxy configuration từ file
-    /// </summary>
-    private static void LoadProxyConfiguration(IServiceCollection services, IConfiguration configuration)
-    {
-        // Ưu tiên đọc tệp cấu hình tại SRT2Speech.AppWindow/Configs/proxies.yaml (tệp nguồn),
-        // nếu không tồn tại thì fallback sang tệp runtime tại BaseDirectory/Configs/proxies.yaml
-        var runtimePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", "proxies.yaml");
-        var workspacePath = Path.Combine(Directory.GetCurrentDirectory(), "SRT2Speech.AppWindow", "Configs", "proxies.yaml");
-        var configPath = File.Exists(workspacePath) ? workspacePath : runtimePath;
-
-        if (File.Exists(configPath))
-        {
-            try
-            {
-                var yaml = File.ReadAllText(configPath);
-                var config = YamlUtility.DeserializeAuto<ProxyConfiguration>(yaml);
-
-                // Create a temporary service provider to get the proxy pool
-                var serviceProvider = services.BuildServiceProvider();
-                var proxyPool = serviceProvider.GetService<IProxyPool>();
-
-                if (proxyPool != null)
-                {
-                    foreach (var proxy in config.Proxies)
-                    {
-                        proxyPool.AddProxy(proxy);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log error but don't throw - allow app to start without proxies
-                Console.WriteLine($"Warning: Could not load proxy configuration from {configPath}: {ex.Message}");
-            }
-        }
-        else
-        {
-            Console.WriteLine($"Warning: proxies.yaml not found at {configPath}");
-        }
     }
 }

@@ -37,6 +37,7 @@ namespace SRT2Speech.AppWindow.ViewModels
         private int _processedCount;
         private int _errorCount;
         private string _statusText;
+        private bool _useProxy = true;
 
         public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler<string>? LogRequested;
@@ -47,6 +48,7 @@ namespace SRT2Speech.AppWindow.ViewModels
         public ICommand LoadApiKeysCommand { get; }
         public ICommand ImportProxiesCommand { get; }
         public ICommand StopCommand { get; }
+        public ICommand OpenOutputFolderCommand { get; }
 
         public string FilePath
         {
@@ -132,6 +134,20 @@ namespace SRT2Speech.AppWindow.ViewModels
             }
         }
 
+        public bool UseProxy
+        {
+            get => _useProxy;
+            set
+            {
+                if (_useProxy != value)
+                {
+                    _useProxy = value;
+                    OnPropertyChanged(nameof(UseProxy));
+                    Log($"[PROXY] Use Proxy: {(_useProxy ? "Enabled" : "Disabled")}");
+                }
+            }
+        }
+
         private class SubtitleTaskItem
         {
             public string SourcePath { get; init; } = string.Empty;
@@ -149,6 +165,7 @@ namespace SRT2Speech.AppWindow.ViewModels
             LoadApiKeysCommand = new RelayCommand(LoadApiKeys, () => !IsProcessing);
             ImportProxiesCommand = new AsyncRelayCommand(ImportProxiesAsync, () => !IsProcessing);
             StopCommand = new RelayCommand(Stop, () => IsProcessing);
+            OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
         }
 
         public void Initialize()
@@ -160,6 +177,19 @@ namespace SRT2Speech.AppWindow.ViewModels
         private void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        // Helper method để đảm bảo UI updates chạy trên UI thread
+        private void UpdateUIProperty(Action action)
+        {
+            if (Application.Current?.Dispatcher.CheckAccess() == true)
+            {
+                action();
+            }
+            else
+            {
+                Application.Current?.Dispatcher.InvokeAsync(action);
+            }
         }
 
         private void Log(string message)
@@ -327,6 +357,29 @@ namespace SRT2Speech.AppWindow.ViewModels
                 }
             }
         }
+        private void OpenOutputFolder()
+        {
+            try
+            {
+                var outputFolder = Path.Combine(Directory.GetCurrentDirectory(), "Files", "Eleven");
+                
+                if (!Directory.Exists(outputFolder))
+                {
+                    Directory.CreateDirectory(outputFolder);
+                    Log($"[FOLDER] Đã tạo thư mục output: {outputFolder}");
+                }
+                
+                // Open folder in Windows Explorer
+                System.Diagnostics.Process.Start("explorer.exe", outputFolder);
+                Log($"[INFO] Đã mở thư mục output: {outputFolder}");
+            }
+            catch (Exception ex)
+            {
+                Log($"[ERROR] Không thể mở thư mục output: {ex.Message}");
+                MessageBox.Show($"Không thể mở thư mục output:\n{ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
 
         private void Stop()
         {
@@ -334,7 +387,7 @@ namespace SRT2Speech.AppWindow.ViewModels
             {
                 _cts.Cancel();
                 Log("[CANCEL] Đã yêu cầu dừng tiến trình hiện tại");
-                StatusText = "Đang dừng...";
+                UpdateUIProperty(() => StatusText = "Đang dừng...");
             }
         }
 
@@ -461,9 +514,12 @@ namespace SRT2Speech.AppWindow.ViewModels
                         {
                             Log($"[ERROR] Không có API key khả dụng cho file {f.SourceName}/{f.Item.Index}.mp3");
                             var newProcessed = Interlocked.Increment(ref _processedCount);
-                            ProcessedCount = newProcessed;
-                            ErrorCount = _trackError.Count;
-                            StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
+                            UpdateUIProperty(() =>
+                            {
+                                ProcessedCount = newProcessed;
+                                ErrorCount = _trackError.Count;
+                                StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
+                            });
                             return;
                         }
     
@@ -474,9 +530,12 @@ namespace SRT2Speech.AppWindow.ViewModels
                         {
                             Log($"[BINDING_MISSING] Key {apiKeyInfo.Key} không có BoundProxyEndpoint - bỏ qua {f.SourceName}/{f.Item.Index}.mp3");
                             var newProcessed = Interlocked.Increment(ref _processedCount);
-                            ProcessedCount = newProcessed;
-                            ErrorCount = _trackError.Count;
-                            StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
+                            UpdateUIProperty(() =>
+                            {
+                                ProcessedCount = newProcessed;
+                                ErrorCount = _trackError.Count;
+                                StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
+                            });
                             return;
                         }
     
@@ -575,9 +634,12 @@ namespace SRT2Speech.AppWindow.ViewModels
                         {
                             try { clientLocal?.Dispose(); } catch { /* ignore */ }
                             var newProcessed = Interlocked.Increment(ref _processedCount);
-                            ProcessedCount = newProcessed;
-                            ErrorCount = _trackError.Count;
-                            StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
+                            UpdateUIProperty(() =>
+                            {
+                                ProcessedCount = newProcessed;
+                                ErrorCount = _trackError.Count;
+                                StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
+                            });
                         }
                     });
     

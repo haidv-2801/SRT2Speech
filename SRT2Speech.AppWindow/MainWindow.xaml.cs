@@ -42,7 +42,13 @@ namespace SRT2Speech.AppWindow
 
         private void InitWindow()
         {
-            var proxyManager = App.ServiceProvider?.GetService<IProxyManager>();
+            var proxyManager = ServiceLocator.GetService<IProxyManager>();
+            if (proxyManager == null)
+            {
+                MessageBox.Show("Error: IProxyManager service not available", "Service Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             ElevenlabVoiceControl elevenLabControl = new ElevenlabVoiceControl(proxyManager);
             TabItem newTab4 = new TabItem();
             newTab4.Header = "Elevenlab";
