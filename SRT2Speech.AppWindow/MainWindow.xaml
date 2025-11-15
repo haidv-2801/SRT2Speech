@@ -8,8 +8,31 @@
         Title="SRT2Speech"
         Height="768"
         Width="1024">
-    <Grid>
-        <TabControl x:Name="tabControl">
+    <DockPanel>
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_Trợ giúp">
+                <MenuItem Header="_Kiểm tra cập nhật..."
+                          Click="MenuItemCheckUpdate_Click"
+                          InputGestureText="Ctrl+U">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🔄" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="_Về SRT2Speech..."
+                          Click="MenuItemAbout_Click"
+                          InputGestureText="F1">
+                    <MenuItem.Icon>
+                        <TextBlock Text="ℹ️" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+        </Menu>
+        
+        <!-- Main Content -->
+        <Grid>
+            <TabControl x:Name="tabControl">
             <TabItem Header="VoicemakerFpt">
                 <StackPanel Orientation="Vertical"
                             Grid.IsSharedSizeScope="True">
@@ -19,6 +42,7 @@
                     </Grid>
                 </StackPanel>
             </TabItem>
-        </TabControl>
-    </Grid>
+            </TabControl>
+        </Grid>
+    </DockPanel>
 </Window>

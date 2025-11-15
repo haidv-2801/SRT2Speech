@@ -1,0 +1,86 @@
+<Window x:Class="SRT2Speech.AppWindow.Views.UpdateProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Đang tải về cập nhật..."
+        Height="200"
+        Width="500"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="White"
+        AllowsTransparency="False"
+        ShowInTaskbar="False">
+    
+    <Window.Resources>
+        <Style TargetType="ProgressBar">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Foreground" Value="#007ACC"/>
+        </Style>
+    </Window.Resources>
+    
+    <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="8" Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="20"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="15"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="20"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Icon và Title -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="📥" FontSize="32" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Text="Đang tải về cập nhật" 
+                          FontSize="20" 
+                          FontWeight="SemiBold"
+                          VerticalAlignment="Center"
+                          Foreground="#333333"/>
+            </StackPanel>
+
+            <!-- Progress Bar -->
+            <ProgressBar Grid.Row="2"
+                        x:Name="progressBar"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="0"
+                        Height="30"/>
+
+            <!-- Progress Text -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0"
+                          x:Name="txtStatus"
+                          Text="Đang khởi tạo..."
+                          FontSize="13"
+                          Foreground="#666666"
+                          VerticalAlignment="Center"/>
+                
+                <TextBlock Grid.Column="1"
+                          x:Name="txtProgress"
+                          Text="0%"
+                          FontSize="13"
+                          FontWeight="SemiBold"
+                          Foreground="#007ACC"
+                          VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Downloaded size info -->
+            <TextBlock Grid.Row="6"
+                      x:Name="txtDownloadedSize"
+                      Text="0 MB / 0 MB"
+                      FontSize="11"
+                      Foreground="#999999"
+                      HorizontalAlignment="Center"/>
+        </Grid>
+    </Border>
+</Window>

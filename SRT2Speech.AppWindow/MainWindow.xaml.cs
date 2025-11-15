@@ -26,10 +26,13 @@ namespace SRT2Speech.AppWindow
     /// </summary>
     public partial class MainWindow : Window
     {
+        private UpdateService? _updateService;
+
         public MainWindow()
         {
             InitializeComponent();
             InitContent();
+            InitializeUpdateService();
         }
       
        
@@ -76,6 +79,109 @@ namespace SRT2Speech.AppWindow
             // Set the window's position
             this.Left = left;
             this.Top = top;
+        }
+
+        private void InitializeUpdateService()
+        {
+            // Khởi tạo UpdateService
+            _updateService = new UpdateService();
+
+            // Kiểm tra cập nhật khi khởi động (background, silent)
+            _ = Task.Run(async () =>
+            {
+                await _updateService.CheckOnStartupAsync(updateInfo =>
+                {
+                    // Hiển thị notification nếu có update
+                    Dispatcher.Invoke(() =>
+                    {
+                        ShowUpdateNotification(updateInfo);
+                    });
+                });
+            });
+        }
+
+        private void ShowUpdateNotification(UpdateInfo updateInfo)
+        {
+            var result = MessageBox.Show(
+                $"Phiên bản mới {updateInfo.LatestVersion} đã có!\n\n" +
+                $"Vào Menu > Trợ giúp > Kiểm tra cập nhật để xem chi tiết.",
+                "Cập nhật mới",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information
+            );
+
+            if (result == MessageBoxResult.Yes)
+            {
+                MenuItemCheckUpdate_Click(this, new RoutedEventArgs());
+            }
+        }
+
+        private async void MenuItemCheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            if (_updateService == null)
+            {
+                MessageBox.Show(
+                    "Dịch vụ cập nhật chưa sẵn sàng!",
+                    "Lỗi",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+                return;
+            }
+
+            try
+            {
+                // Disable menu while checking
+                var menuItem = sender as MenuItem;
+                if (menuItem != null)
+                {
+                    menuItem.IsEnabled = false;
+                }
+
+                await _updateService.PromptAndUpdateAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Lỗi kiểm tra cập nhật:\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+            }
+            finally
+            {
+                // Re-enable menu
+                var menuItem = sender as MenuItem;
+                if (menuItem != null)
+                {
+                    menuItem.IsEnabled = true;
+                }
+            }
+        }
+
+        private void MenuItemAbout_Click(object sender, RoutedEventArgs e)
+        {
+            var version = _updateService?.GetCurrentVersion() ?? new Version(1, 0, 0);
+            var aboutMessage = $"SRT2Speech\n\n" +
+                             $"Phiên bản: {version}\n" +
+                             $"Copyright © 2024\n\n" +
+                             $"Ứng dụng chuyển đổi file phụ đề SRT thành giọng nói\n" +
+                             $"sử dụng các dịch vụ Text-to-Speech (TTS).\n\n" +
+                             $"Hỗ trợ: ElevenLabs, FPT, Vbee, Google";
+
+            MessageBox.Show(
+                aboutMessage,
+                "Về SRT2Speech",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information
+            );
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            _updateService?.Dispose();
         }
     }
 }

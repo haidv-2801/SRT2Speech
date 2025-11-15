@@ -1,0 +1,16 @@
+{
+  "latestVersion": "1.1.0",
+  "releaseDate": "2024-11-15T00:00:00Z",
+  "downloadUrl": "https://yourdomain.com/downloads/SRT2Speech-1.1.0.exe",
+  "fileSize": 157286400,
+  "changelog": [
+    "✨ Thêm tính năng auto-update",
+    "✨ Thêm menu Trợ giúp với kiểm tra cập nhật",
+    "🐛 Sửa lỗi proxy connection timeout",
+    "⚡ Cải thiện hiệu suất xử lý SRT",
+    "📝 Cập nhật tài liệu hướng dẫn"
+  ],
+  "minimumVersion": "1.0.0",
+  "forceUpdate": false,
+  "releaseNotes": "Phiên bản 1.1.0 bổ sung tính năng tự động kiểm tra và cập nhật phiên bản mới, cùng với nhiều cải tiến về hiệu suất và sửa lỗi."
+}

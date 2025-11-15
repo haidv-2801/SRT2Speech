@@ -2,28 +2,38 @@
 
 This file provides guidance to agents when working with code in this repository.
 
-## Build Commands
+## Non-Obvious Build Commands
 
-- Build AppWindow: `dotnet publish SRT2Speech.AppWindow/SRT2Speech.AppWindow.csproj -c Release -o ../Production/ReleaseStartApp/RelaseWindowApp --runtime win-x64 --self-contained true`
-- Build GenKey: `dotnet publish SRT2Speech.GenKey/SRT2Speech.GenKey.csproj -c Release -o ../Production/Genkey --runtime win-x64 --self-contained true`
-- Build WebAPI: `dotnet build SRT2Speech.WebAPI/SRT2Speech.WebAPI.csproj`
-- Run WebAPI: `dotnet run --project SRT2Speech.WebAPI/SRT2Speech.WebAPI.csproj`
+- **Single-file builds require special flags**: All projects use `/p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true` for single-file deployment
+- **Proxy config dual-path loading**: ProxyManager searches BOTH workspace path (`SRT2Speech.AppWindow/Configs/proxies.yaml`) AND runtime path (`AppDomain.CurrentDomain.BaseDirectory/Configs/proxies.yaml`) - workspace takes priority
+- **Build output structure is enforced**: `build-all.bat` creates specific directory structure under `../Production/` with separate folders for each component
 
-## Code Style
+## Hidden Code Patterns
 
-- Use nullable reference types (`<Nullable>enable</Nullable>`)
-- Implicit usings enabled (`<ImplicitUsings>enable</ImplicitUsings>`)
-- Target .NET 8.0
-- WPF for desktop app, ASP.NET Core for WebAPI
+- **ApiKeyManager auto-save is DISABLED**: The timer for periodic saves is commented out (lines 46, 335 in ProxyManager) - only saves on explicit calls or Dispose
+- **Proxy state persistence is DISABLED**: State save timer is commented out (line 335 in ProxyManager) despite EnableStatePersistence setting
+- **YAML utility has auto-detection**: `YamlUtility.DeserializeAuto<T>()` tries 5 different naming conventions in sequence before failing
+- **Retry mechanism excludes user cancellation**: `TaskCanceledException` is only caught when `CancellationToken` is default or not user-requested (line 24 in RetryWithJitterAndPolly)
 
-## Project-Specific Patterns
+## Critical Project-Specific Conventions
 
-- Custom AES encryption in `SRT2Speech.Core/Utilitys/AESEncryption.cs` for secure data handling
-- SRT utility in `SRT2Speech.Core/Utilitys/SRTUtility.cs` for subtitle processing
-- FFMPEG integration via `SRT2Speech.Core/Ffmpeg/Ffmpeg.cs` for media processing
-- Polly-based retry mechanism in `SRT2Speech.AppWindow/Services/RetryWithJitterAndPolly.cs`
-- SignalR for real-time communication in WebAPI and Core
-- YAML utility in `SRT2Speech.Core/Utilitys/YamlUtility.cs` for configuration
-- ApiKeyManager in `SRT2Speech.AppWindow/Services/ApiKeyManager.cs` does NOT use periodic auto-save (timer commented out) - only saves on explicit calls or Dispose
+- **Proxy binding validation is MANDATORY**: `BoundProxyParser.TryParseBoundEndpoint()` must validate proxy endpoints before assignment - invalid endpoints are silently rejected
+- **Dead key logging is automatic**: Exhausted API keys are ALWAYS logged to `Configs/DeadKeys.txt` with timestamp and reason
+- **Rate limit header parsing**: ApiKeyManager automatically parses `X-RateLimit-Reset` headers and adjusts cooldown periods accordingly
+- **Console logging is hardcoded**: Many services use `Console.WriteLine()` for debugging (not configurable via appsettings)
 
-ALL REPONSE MESSAGE IN VIETNAMESE
+## Configuration Gotchas
+
+- **WebAPI has minimal config**: `SRT2Speech.WebAPI/appsettings.json` only contains logging settings - proxy configuration must come from external sources
+- **Proxy health check URL is fixed**: Default health check uses `https://httpbin.org/ip` - changing this requires code modification
+- **State file paths are relative**: All state files (`proxy-state.yaml`, `ElevenlabKeyState.yaml`) use relative paths that resolve differently in development vs production
+
+## Testing Requirements
+
+- **NO test framework detected**: Project has empty `Tests` folders but no xUnit, NUnit, or MSTest configuration
+- **Manual testing only**: All testing appears to be manual through the WPF interface
+
+## Security Patterns
+
+- **AES encryption uses HARDCODED keys**: `AESEncryption` class has static key/IV values embedded in code (lines 12-13)
+- **Proxy credentials in plain text**: YAML configuration stores proxy usernames/passwords without encryption

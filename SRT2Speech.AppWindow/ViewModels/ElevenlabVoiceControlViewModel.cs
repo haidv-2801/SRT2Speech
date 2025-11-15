@@ -44,11 +44,16 @@ namespace SRT2Speech.AppWindow.ViewModels
         private ElevenLabsHttpClientFactory _httpClientFactory;
         private ProcessingCheckpoint? _currentCheckpoint;
         private bool _enableCheckpointing = true;
+        
+        // Batch tracking cho checkpoint optimization
+        private ConcurrentBag<ProcessedItem> _pendingProcessedItems = new();
+        private ConcurrentBag<ErrorItem> _pendingErrorItems = new();
 
         public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler<string>? LogRequested;
 
         public ICommand OpenFileCommand { get; }
+        public ICommand OpenFolderCommand { get; }
         public ICommand DownloadMp3Command { get; }
         public ICommand DownloadErrorCommand { get; }
         public ICommand LoadApiKeysCommand { get; }
@@ -175,6 +180,7 @@ namespace SRT2Speech.AppWindow.ViewModels
             _httpClientFactory = new ElevenLabsHttpClientFactory();
 
             OpenFileCommand = new RelayCommand(OpenFile, () => !IsProcessing);
+            OpenFolderCommand = new RelayCommand(OpenFolder, () => !IsProcessing);
             DownloadMp3Command = new AsyncRelayCommand(DownloadMp3Async, () => !IsProcessing);
             DownloadErrorCommand = new AsyncRelayCommand(DownloadErrorAsync, () => !IsProcessing);
             LoadApiKeysCommand = new RelayCommand(LoadApiKeys, () => !IsProcessing);
@@ -414,6 +420,66 @@ namespace SRT2Speech.AppWindow.ViewModels
                 }
             }
         }
+
+        private void OpenFolder()
+        {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
+            
+            // Sử dụng VistaFolderBrowserDialog từ Ookii.Dialogs.Wpf
+            var folderDialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog
+            {
+                Description = "Chọn thư mục chứa file SRT",
+                UseDescriptionForTitle = true
+            };
+            
+            if (folderDialog.ShowDialog() == true)
+            {
+                var folderPath = folderDialog.SelectedPath;
+                
+                if (string.IsNullOrEmpty(folderPath))
+                {
+                    MessageBox.Show("Đường dẫn thư mục không hợp lệ.");
+                    return;
+                }
+                
+                // Tìm tất cả file .srt trong thư mục
+                var srtFiles = Directory.GetFiles(folderPath, "*.srt", SearchOption.TopDirectoryOnly);
+                
+                if (srtFiles.Length == 0)
+                {
+                    MessageBox.Show("Không tìm thấy file .srt nào trong thư mục này.");
+                    return;
+                }
+                
+                // Dùng file đầu tiên làm đại diện cho FilePath
+                FilePath = srtFiles[0];
+                _fileInputContent = File.ReadAllText(srtFiles[0]);
+                
+                if (string.IsNullOrEmpty(_fileInputContent))
+                {
+                    MessageBox.Show("File không có nội dung.");
+                    return;
+                }
+                
+                Log($"[FOLDER] Đã chọn thư mục: {folderPath}");
+                Log($"[FOLDER] Tìm thấy {srtFiles.Length} file .srt sẽ được xử lý:");
+                
+                // Log danh sách file
+                foreach (var file in srtFiles.Take(10)) // Chỉ hiển thị 10 file đầu
+                {
+                    Log($"  - {Path.GetFileName(file)}");
+                }
+                
+                if (srtFiles.Length > 10)
+                {
+                    Log($"  ... và {srtFiles.Length - 10} file khác");
+                }
+            }
+        }
+
         private void OpenOutputFolder()
         {
             try
@@ -677,6 +743,10 @@ namespace SRT2Speech.AppWindow.ViewModels
             ProcessedCount = 0;
             ErrorCount = 0;
             StatusText = "Bắt đầu xử lý...";
+            
+            // Clear pending items khi bắt đầu mới
+            _pendingProcessedItems.Clear();
+            _pendingErrorItems.Clear();
 
             try
             {
@@ -769,10 +839,35 @@ namespace SRT2Speech.AppWindow.ViewModels
                 StatusText = $"Kết thúc: {ProcessedCount}/{TotalCount} - Lỗi còn lại: {ErrorCount}";
                 
                 // Complete checkpoint if all items processed successfully
-                if (_enableCheckpointing && _currentCheckpoint != null && ProcessedCount == TotalCount)
+                if (_enableCheckpointing && _currentCheckpoint != null)
                 {
-                    _checkpointManager.CompleteCheckpoint(_currentCheckpoint);
-                    Log($"[CHECKPOINT] Checkpoint completed: {_currentCheckpoint.CheckpointId}");
+                    // Flush remaining pending items trước khi complete
+                    if (_pendingProcessedItems.Any() || _pendingErrorItems.Any())
+                    {
+                        foreach (var processedItem in _pendingProcessedItems)
+                            _currentCheckpoint.ProcessedItems.Add(processedItem);
+                        foreach (var errorItem in _pendingErrorItems)
+                            _currentCheckpoint.ErrorItems.Add(errorItem);
+                        
+                        _currentCheckpoint.ProcessedCount = ProcessedCount;
+                        _currentCheckpoint.ErrorCount = ErrorCount;
+                        _checkpointManager.UpdateCheckpoint(_currentCheckpoint);
+                        
+                        _pendingProcessedItems.Clear();
+                        _pendingErrorItems.Clear();
+                        Log($"[CHECKPOINT] Flushed remaining {_pendingProcessedItems.Count + _pendingErrorItems.Count} pending items");
+                    }
+                    
+                    // Mark as completed nếu xử lý xong tất cả
+                    if (ProcessedCount == TotalCount)
+                    {
+                        _checkpointManager.CompleteCheckpoint(_currentCheckpoint);
+                        Log($"[CHECKPOINT] Checkpoint completed: {_currentCheckpoint.CheckpointId}");
+                    }
+                    else
+                    {
+                        Log($"[CHECKPOINT] Checkpoint saved (incomplete): {ProcessedCount}/{TotalCount} processed");
+                    }
                 }
                 
                 _cts?.Dispose();
@@ -842,46 +937,98 @@ namespace SRT2Speech.AppWindow.ViewModels
 
             return await Task.Run(() =>
             {
+                // Khôi phục UI state từ checkpoint
+                UpdateUIProperty(() =>
+                {
+                    ProcessedCount = _currentCheckpoint.ProcessedCount;
+                    ErrorCount = _currentCheckpoint.ErrorCount;
+                    TotalCount = _currentCheckpoint.TotalCount;
+                });
+                
+                Log($"[CHECKPOINT] Khôi phục state: Processed={_currentCheckpoint.ProcessedCount}, Errors={_currentCheckpoint.ErrorCount}, Total={_currentCheckpoint.TotalCount}");
+
                 var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
                 var allItems = new List<SubtitleTaskItem>();
                 
-                // Parse tất cả files
+                // Tạo HashSet để lookup nhanh
+                var processedItemKeys = _currentCheckpoint.ProcessedItems
+                    .Select(p => $"{p.SourcePath}:{p.ItemIndex}")
+                    .ToHashSet();
+                
+                var errorItemKeys = _currentCheckpoint.ErrorItems
+                    .Select(e => $"{e.SourcePath}:{e.ItemIndex}")
+                    .ToHashSet();
+                
+                // Track processed files để tối ưu
+                var fullyProcessedFiles = new HashSet<string>();
+                var filesProcessedCount = new Dictionary<string, int>();
+                
+                // Đếm số items đã processed cho mỗi file
+                foreach (var item in _currentCheckpoint.ProcessedItems)
+                {
+                    if (!filesProcessedCount.ContainsKey(item.SourcePath))
+                        filesProcessedCount[item.SourcePath] = 0;
+                    filesProcessedCount[item.SourcePath]++;
+                }
+                
+                var processedFiles = 0;
+                var totalFiles = srtFiles.Count;
+                
+                // Chỉ parse các file chưa hoàn thành
                 foreach (var srt in srtFiles)
                 {
-                    using var fileStream = File.OpenRead(srt);
-                    var items = parser.ParseStream(fileStream, Encoding.UTF8);
-                    var name = Path.GetFileNameWithoutExtension(srt);
-                    allItems.AddRange(items.Select(it => new SubtitleTaskItem
+                    try
                     {
-                        SourcePath = srt,
-                        SourceName = name,
-                        Item = it
-                    }));
+                        using var fileStream = File.OpenRead(srt);
+                        var items = parser.ParseStream(fileStream, Encoding.UTF8);
+                        var name = Path.GetFileNameWithoutExtension(srt);
+                        
+                        // Kiểm tra xem file đã được processed hoàn toàn chưa
+                        var fileItemCount = items.Count;
+                        var fileProcessedCount = filesProcessedCount.GetValueOrDefault(srt, 0);
+                        
+                        if (fileProcessedCount >= fileItemCount && !errorItemKeys.Any(k => k.StartsWith($"{srt}:")))
+                        {
+                            // File đã hoàn thành, skip
+                            fullyProcessedFiles.Add(srt);
+                            Log($"[CHECKPOINT_SKIP] File đã hoàn thành: {name} ({fileProcessedCount}/{fileItemCount} items)");
+                            continue;
+                        }
+                        
+                        // Chỉ thêm items chưa được xử lý hoặc bị lỗi
+                        foreach (var item in items)
+                        {
+                            var key = $"{srt}:{item.Index}";
+                            if (!processedItemKeys.Contains(key) || errorItemKeys.Contains(key))
+                            {
+                                allItems.Add(new SubtitleTaskItem
+                                {
+                                    SourcePath = srt,
+                                    SourceName = name,
+                                    Item = item
+                                });
+                            }
+                        }
+                        
+                        processedFiles++;
+                        
+                        // Force GC mỗi 10 files để tránh memory leak
+                        if (processedFiles % 10 == 0)
+                        {
+                            GC.Collect();
+                            Log($"[CHECKPOINT_MEMORY] Forced GC after processing {processedFiles}/{totalFiles} files");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"[CHECKPOINT_ERROR] Lỗi khi parse file {srt}: {ex.Message}");
+                    }
                 }
 
-                // Lọc ra các items chưa được xử lý thành công
-                var processedItemKeys = _currentCheckpoint.ProcessedItems
-                    .Select(p => $"{p.SourceName}:{p.ItemIndex}")
-                    .ToHashSet();
-
-                var remainingItems = allItems
-                    .Where(item => !processedItemKeys.Contains($"{item.SourceName}:{item.Item.Index}"))
-                    .ToList();
-
-                // Thêm lại các items bị lỗi để retry
-                var errorItemKeys = _currentCheckpoint.ErrorItems
-                    .Select(e => $"{e.SourceName}:{e.ItemIndex}")
-                    .ToHashSet();
-
-                var errorItems = allItems
-                    .Where(item => errorItemKeys.Contains($"{item.SourceName}:{item.Item.Index}"))
-                    .ToList();
-
-                remainingItems.AddRange(errorItems);
-
-                Log($"[CHECKPOINT] Resuming with {remainingItems.Count} items (success: {_currentCheckpoint.ProcessedItems.Count}, errors: {_currentCheckpoint.ErrorItems.Count})");
+                Log($"[CHECKPOINT] Resume hoàn tất: {allItems.Count} items còn lại (skipped {fullyProcessedFiles.Count} files)");
+                Log($"[CHECKPOINT] Breakdown - Đã xử lý: {_currentCheckpoint.ProcessedItems.Count}, Lỗi cần retry: {errorItemKeys.Count}");
                 
-                return remainingItems;
+                return allItems;
             });
         }
 
@@ -1012,10 +1159,10 @@ namespace SRT2Speech.AppWindow.ViewModels
                                 _trackError.Remove(errKey, out SubtitleTaskItem? _);
                                 Log($"[SUCCESS] {f.SourceName}/{f.Item.Index}.mp3 ({sw.ElapsedMilliseconds}ms)");
 
-                                // Add to checkpoint if enabled
+                                // Add to pending batch checkpoint (không ghi file ngay)
                                 if (_enableCheckpointing && _currentCheckpoint != null)
                                 {
-                                    var processedItem = new ProcessedItem
+                                    _pendingProcessedItems.Add(new ProcessedItem
                                     {
                                         SourcePath = f.SourcePath,
                                         SourceName = f.SourceName,
@@ -1023,8 +1170,7 @@ namespace SRT2Speech.AppWindow.ViewModels
                                         OutputPath = outPath,
                                         ApiKeyUsed = apiKeyInfo.Key,
                                         ProxyUsed = chosen != null ? $"{chosen.Host}:{chosen.Port}" : "No Proxy"
-                                    };
-                                    _checkpointManager.AddProcessedItem(_currentCheckpoint, processedItem);
+                                    });
                                 }
 
                                 // Chỉ mark proxy success nếu thực sự sử dụng proxy
@@ -1038,10 +1184,10 @@ namespace SRT2Speech.AppWindow.ViewModels
                                 string contentErr = await response.Content.ReadAsStringAsync(ct);
                                 Log("[ERROR]: " + contentErr);
 
-                                // Add to checkpoint if enabled
+                                // Add to pending batch checkpoint (không ghi file ngay)
                                 if (_enableCheckpointing && _currentCheckpoint != null)
                                 {
-                                    var errorItem = new ErrorItem
+                                    _pendingErrorItems.Add(new ErrorItem
                                     {
                                         SourcePath = f.SourcePath,
                                         SourceName = f.SourceName,
@@ -1049,8 +1195,7 @@ namespace SRT2Speech.AppWindow.ViewModels
                                         ErrorMessage = $"{response.StatusCode}: {contentErr}",
                                         ApiKeyUsed = apiKeyInfo.Key,
                                         ProxyUsed = chosen != null ? $"{chosen.Host}:{chosen.Port}" : "No Proxy"
-                                    };
-                                    _checkpointManager.AddErrorItem(_currentCheckpoint, errorItem);
+                                    });
                                 }
 
                                 // Chỉ mark proxy failure nếu thực sự sử dụng proxy
@@ -1109,12 +1254,25 @@ namespace SRT2Speech.AppWindow.ViewModels
     
                     await Task.WhenAll(tasks);
 
-                    // Save checkpoint after each batch
+                    // Save checkpoint after each batch với đầy đủ thông tin
                     if (_enableCheckpointing && _currentCheckpoint != null)
                     {
-                        _currentCheckpoint.LastBatchProcessed = batchIndex.ToString();
+                        // Flush pending items vào checkpoint
+                        foreach (var processedItem in _pendingProcessedItems)
+                            _currentCheckpoint.ProcessedItems.Add(processedItem);
+                        foreach (var errorItem in _pendingErrorItems)
+                            _currentCheckpoint.ErrorItems.Add(errorItem);
+                        
+                        _pendingProcessedItems.Clear();
+                        _pendingErrorItems.Clear();
+                        
+                        // Cập nhật counts
+                        _currentCheckpoint.ProcessedCount = ProcessedCount;
+                        _currentCheckpoint.ErrorCount = ErrorCount;
+                        _currentCheckpoint.LastBatchProcessed = $"Batch {batchIndex}/{chunks.Count()}";
+                        
                         _checkpointManager.UpdateCheckpoint(_currentCheckpoint);
-                        Log($"[CHECKPOINT] Saved checkpoint after batch {batchIndex}/{chunks.Count()}");
+                        Log($"[CHECKPOINT] Saved: Processed={ProcessedCount}/{TotalCount}, Errors={ErrorCount}, Batch={batchIndex}/{chunks.Count()}");
                     }
 
                     if (ct.IsCancellationRequested)

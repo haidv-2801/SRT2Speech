@@ -8,7 +8,7 @@ namespace SRT2Speech.AppWindow.Models
     /// </summary>
     public class ProcessingCheckpoint
     {
-        public string CheckpointId { get; set; } = Guid.NewGuid().ToString();
+        public string CheckpointId { get; set; } = $"{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString("N")[..8]}";
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string SourceFolder { get; set; } = string.Empty;
         public List<string> ProcessedFiles { get; set; } = new List<string>();

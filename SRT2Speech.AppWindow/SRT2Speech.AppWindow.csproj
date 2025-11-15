@@ -7,9 +7,25 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <StartupObject>SRT2Speech.AppWindow.App</StartupObject>
+    
+    <!-- Version Information -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    
+    <!-- Product Information -->
+    <Product>SRT2Speech</Product>
+    <Company>dvhai</Company>
+    <Copyright>Copyright © 2025 </Copyright>
+    <Description>Ứng dụng chuyển đổi file phụ đề SRT thành giọng nói sử dụng các dịch vụ TTS</Description>
+    <Authors>dvhai</Authors>
+    
+    <!-- Application Information -->
+    <ApplicationIcon></ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
