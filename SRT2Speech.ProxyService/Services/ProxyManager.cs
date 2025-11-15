@@ -7,6 +7,7 @@ using SRT2Speech.ProxyService.HttpHandlers;
 using SRT2Speech.ProxyService.Interfaces;
 using SRT2Speech.ProxyService.Models;
 using YamlDotNet.Serialization.NamingConventions;
+using static SRT2Speech.ProxyService.HttpHandlers.Socks5HttpHandlerFactory;
 
 namespace SRT2Speech.ProxyService.Services;
 
@@ -82,7 +83,22 @@ public class ProxyManager : IProxyManager, IDisposable
             throw new NoAvailableProxyException("Không có proxy nào available");
         }
 
-        var handler = new ProxyHttpClientHandler(proxy);
+        HttpMessageHandler handler;
+        
+        // Sử dụng handler phù hợp với proxy type
+        if (proxy.Type == ProxyType.SOCKS5)
+        {
+            _logger.LogDebug("Creating SOCKS5 HttpClient for proxy {ProxyId} ({Host}:{Port})",
+                proxy.Id, proxy.Host, proxy.Port);
+            handler = Socks5HttpHandlerFactory.CreateSocks5Handler(proxy);
+        }
+        else
+        {
+            _logger.LogDebug("Creating HTTP/HTTPS HttpClient for proxy {ProxyId} ({Host}:{Port})",
+                proxy.Id, proxy.Host, proxy.Port);
+            handler = new ProxyHttpClientHandler(proxy);
+        }
+        
         var client = new HttpClient(handler)
         {
             Timeout = TimeSpan.FromSeconds(30)

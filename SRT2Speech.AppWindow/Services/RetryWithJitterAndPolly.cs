@@ -13,7 +13,7 @@ namespace SRT2Speech.AppWindow.Services
 {
     internal class RetryWithJitterAndPolly
     {
-        public static async Task<TResult> ExecuteWithRetryAndJitterAsync<TResult>(Func<Task<TResult>> operation, Func<TResult, bool> isResultValid, int maxRetries = 5, int baseDelayMs = 1000, double jitterFactor = 0.5)
+        public static async Task<TResult> ExecuteWithRetryAndJitterAsync<TResult>(Func<Task<TResult>> operation, Func<TResult, bool> isResultValid, int maxRetries = 5, int baseDelayMs = 1000, double jitterFactor = 0.5, Action<string>? logCallback = null)
         {
             Random jitterer = new Random();
             var retryPolicy = Policy
@@ -28,19 +28,24 @@ namespace SRT2Speech.AppWindow.Services
                   {
                       var delay = baseDelayMs * TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt));
                       delay = delay + TimeSpan.FromMilliseconds(delay.TotalMilliseconds * (jitterFactor * (new Random().NextDouble() * 2 - 1)));
-                      Console.WriteLine($"[RETRY] Attempt {retryAttempt}/{maxRetries}, delay: {delay.TotalSeconds:F2}s");
+                      var logMsg = $"[RETRY] Attempt {retryAttempt}/{maxRetries}, delay: {delay.TotalSeconds:F2}s";
+                      Console.WriteLine(logMsg);
+                      logCallback?.Invoke(logMsg);
                       return delay;
                   },
                   onRetry: (outcome, timespan, retryCount, context) =>
                   {
+                      string logMsg;
                       if (outcome.Exception != null)
                       {
-                          Console.WriteLine($"[RETRY_ERROR] Retry {retryCount} due to: {outcome.Exception.GetType().Name} - {outcome.Exception.Message}");
+                          logMsg = $"[RETRY_ERROR] Retry {retryCount} due to: {outcome.Exception.GetType().Name} - {outcome.Exception.Message}";
                       }
                       else
                       {
-                          Console.WriteLine($"[RETRY_INVALID] Retry {retryCount} due to invalid result");
+                          logMsg = $"[RETRY_INVALID] Retry {retryCount} due to invalid result";
                       }
+                      Console.WriteLine(logMsg);
+                      logCallback?.Invoke(logMsg);
                   }
               );
 
@@ -59,7 +64,8 @@ namespace SRT2Speech.AppWindow.Services
             CancellationToken ct,
             int maxRetries = 5,
             int baseDelayMs = 1000,
-            double jitterFactor = 0.5)
+            double jitterFactor = 0.5,
+            Action<string>? logCallback = null)
         {
             Random jitterer = new Random();
             var retryPolicy = Policy
@@ -76,19 +82,24 @@ namespace SRT2Speech.AppWindow.Services
                         var baseDelay = TimeSpan.FromMilliseconds(baseDelayMs * Math.Pow(2, retryAttempt));
                         var jitter = TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * (jitterFactor * (new Random().NextDouble() * 2 - 1)));
                         var delay = baseDelay + jitter;
-                        Console.WriteLine($"[RETRY] Attempt {retryAttempt}/{maxRetries}, delay: {delay.TotalSeconds:F2}s");
+                        var logMsg = $"[RETRY] Attempt {retryAttempt}/{maxRetries}, delay: {delay.TotalSeconds:F2}s";
+                        Console.WriteLine(logMsg);
+                        logCallback?.Invoke(logMsg);
                         return delay;
                     },
                     onRetry: (outcome, timespan, retryCount, context) =>
                     {
+                        string logMsg;
                         if (outcome.Exception != null)
                         {
-                            Console.WriteLine($"[RETRY_ERROR] Retry {retryCount} due to: {outcome.Exception.GetType().Name} - {outcome.Exception.Message}");
+                            logMsg = $"[RETRY_ERROR] Retry {retryCount} due to: {outcome.Exception.GetType().Name} - {outcome.Exception.Message}";
                         }
                         else
                         {
-                            Console.WriteLine($"[RETRY_INVALID] Retry {retryCount} due to invalid result");
+                            logMsg = $"[RETRY_INVALID] Retry {retryCount} due to invalid result";
                         }
+                        Console.WriteLine(logMsg);
+                        logCallback?.Invoke(logMsg);
                     }
                 );
 

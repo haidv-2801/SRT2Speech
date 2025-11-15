@@ -225,44 +225,72 @@
                 
                 <!-- Action Buttons on right -->
                 <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
-                <Button x:Name="btnOpenOutputFolder"
-                        Content="📁 Output Folder"
-                        Width="125"
-                        Height="32"
-                        Margin="0,0,5,0"
-                        Style="{StaticResource SecondaryButton}"
-                        Command="{Binding OpenOutputFolderCommand}"/>
+                    <!-- Restart App Icon Button -->
+                    <Button x:Name="btnRestartApp"
+                            Content="🔄"
+                            Width="32"
+                            Height="32"
+                            FontSize="16"
+                            Margin="0,0,5,0"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding RestartAppCommand}"
+                            ToolTip="Khởi động lại ứng dụng"/>
+                    
+                    <!-- Tools Menu -->
+                    <Menu Background="Transparent" VerticalAlignment="Center" Margin="0,0,5,0">
+                        <MenuItem Header="⚙️ Tools" Height="32" Padding="10,5" Background="#6C757D" Foreground="White" FontWeight="SemiBold">
+                            <MenuItem.Resources>
+                                <!-- Style cho submenu items -->
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Background" Value="#2D2D30"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="Padding" Value="10,5"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#3E3E42"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                                <Style TargetType="Separator">
+                                    <Setter Property="Background" Value="#3E3E42"/>
+                                </Style>
+                            </MenuItem.Resources>
+                            <MenuItem Header="🔄 Reload Config"
+                                      Command="{Binding ReloadConfigCommand}"
+                                      ToolTip="Reload lại file cấu hình ElevenlabConfig.yaml và ElevenlabKeyState.yaml"/>
+                            <Separator/>
+                            <MenuItem Header="📁 Open Output Folder"
+                                      Command="{Binding OpenOutputFolderCommand}"
+                                      ToolTip="Mở thư mục chứa file MP3 đã tạo"/>
+                            <MenuItem Header="⚙️ Open Config Folder"
+                                      Command="{Binding OpenConfigFolderCommand}"
+                                      ToolTip="Mở thư mục chứa file cấu hình"/>
+                            <Separator/>
+                            <MenuItem Header="🔑 Load API Keys"
+                                      Command="{Binding LoadApiKeysCommand}"
+                                      ToolTip="Load API keys từ file text"/>
+                            <MenuItem Header="🌐 Import Proxies"
+                                      Command="{Binding ImportProxiesCommand}"
+                                      ToolTip="Import danh sách proxy từ file"/>
+                        </MenuItem>
+                    </Menu>
                 
-                <Button x:Name="btnLoadApiKeys"
-                        Content="Load API Keys"
-                        Width="110"
-                        Height="32"
-                        Margin="0,0,5,0"
-                        Style="{StaticResource SecondaryButton}"
-                        Command="{Binding LoadApiKeysCommand}"/>
+                    <Button x:Name="btnDowload"
+                            Content="▶️ Download MP3"
+                            Width="130"
+                            Height="32"
+                            Margin="0,0,5,0"
+                            Style="{StaticResource SuccessButton}"
+                            Command="{Binding DownloadMp3Command}"
+                            ToolTip="Bắt đầu xử lý và tải xuống file MP3"/>
                 
-                <Button x:Name="btnImportProxies"
-                        Content="Import Proxies"
-                        Width="110"
-                        Height="32"
-                        Margin="0,0,5,0"
-                        Style="{StaticResource SecondaryButton}"
-                        Command="{Binding ImportProxiesCommand}"/>
-                
-                <Button x:Name="btnDowload"
-                        Content="Download MP3"
-                        Width="110"
-                        Height="32"
-                        Margin="0,0,5,0"
-                        Style="{StaticResource SuccessButton}"
-                        Command="{Binding DownloadMp3Command}"/>
-                
-                <Button x:Name="btnDowloadError"
-                        Content="Download Errors"
-                        Width="120"
-                        Height="32"
-                        Style="{StaticResource WarningButton}"
-                        Command="{Binding DownloadErrorCommand}"/>
+                    <Button x:Name="btnDowloadError"
+                            Content="🔄 Retry Errors"
+                            Width="110"
+                            Height="32"
+                            Style="{StaticResource WarningButton}"
+                            Command="{Binding DownloadErrorCommand}"
+                            ToolTip="Thử lại các file bị lỗi"/>
                 </WrapPanel>
             </Grid>
         </Grid>
@@ -309,7 +337,7 @@
                     </StackPanel>
                     
                     <Button Grid.Column="1"
-                            Content="Stop"
+                            Content="⏹️ Stop"
                             Width="80"
                             Height="28"
                             Style="{StaticResource DangerButton}"

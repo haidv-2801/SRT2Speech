@@ -37,7 +37,13 @@ namespace SRT2Speech.AppWindow.ViewModels
         private int _processedCount;
         private int _errorCount;
         private string _statusText;
-        private bool _useProxy = true;
+        private bool _useProxy = false;
+        
+        // Error Recovery và Performance improvements
+        private CheckpointManager _checkpointManager;
+        private ElevenLabsHttpClientFactory _httpClientFactory;
+        private ProcessingCheckpoint? _currentCheckpoint;
+        private bool _enableCheckpointing = true;
 
         public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler<string>? LogRequested;
@@ -49,6 +55,9 @@ namespace SRT2Speech.AppWindow.ViewModels
         public ICommand ImportProxiesCommand { get; }
         public ICommand StopCommand { get; }
         public ICommand OpenOutputFolderCommand { get; }
+        public ICommand OpenConfigFolderCommand { get; }
+        public ICommand ReloadConfigCommand { get; }
+        public ICommand RestartAppCommand { get; }
 
         public string FilePath
         {
@@ -158,6 +167,10 @@ namespace SRT2Speech.AppWindow.ViewModels
         public ElevenlabVoiceControlViewModel(IProxyManager proxyManager)
         {
             _proxyManager = proxyManager;
+            
+            // Initialize error recovery và performance improvements
+            _checkpointManager = new CheckpointManager();
+            _httpClientFactory = new ElevenLabsHttpClientFactory();
 
             OpenFileCommand = new RelayCommand(OpenFile, () => !IsProcessing);
             DownloadMp3Command = new AsyncRelayCommand(DownloadMp3Async, () => !IsProcessing);
@@ -166,6 +179,9 @@ namespace SRT2Speech.AppWindow.ViewModels
             ImportProxiesCommand = new AsyncRelayCommand(ImportProxiesAsync, () => !IsProcessing);
             StopCommand = new RelayCommand(Stop, () => IsProcessing);
             OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
+            OpenConfigFolderCommand = new RelayCommand(OpenConfigFolder);
+            ReloadConfigCommand = new RelayCommand(ReloadConfig, () => !IsProcessing);
+            RestartAppCommand = new RelayCommand(RestartApp, () => !IsProcessing);
         }
 
         public void Initialize()
@@ -240,31 +256,68 @@ namespace SRT2Speech.AppWindow.ViewModels
                 return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", fileName);
             }
             
-            _elevenLabConfig = YamlUtility.DeserializeAuto<ElevenlabConfig>(File.ReadAllText(GetConfigPath("ElevenlabConfig.yaml")));
-            _elevenLabKeyState = YamlUtility.DeserializeAuto<ElevenlabKeyState>(File.ReadAllText(GetConfigPath("ElevenlabKeyState.yaml")));
-            _apiKeyManager = new ApiKeyManager(
-                _elevenLabKeyState.ApiKeys,
-                _elevenLabConfig.KeySelectionAlgorithm,
-                TimeSpan.FromMinutes(_elevenLabConfig.QuotaResetTimeMinutes),
-                GetConfigPath("ElevenlabKeyState.yaml")
-            );
+            try
+            {
+                // Đọc file config với xử lý lỗi
+                var configPath = GetConfigPath("ElevenlabConfig.yaml");
+                if (!File.Exists(configPath))
+                {
+                    Log($"[ERROR] File config không tồn tại: {configPath}");
+                    MessageBox.Show($"File config không tồn tại: {configPath}\nVui lòng kiểm tra thư mục Configs.", "Lỗi cấu hình", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                _elevenLabConfig = YamlUtility.DeserializeAuto<ElevenlabConfig>(File.ReadAllText(configPath));
+                
+                // Đọc file key state với xử lý lỗi
+                var keyStatePath = GetConfigPath("ElevenlabKeyState.yaml");
+                if (!File.Exists(keyStatePath))
+                {
+                    Log($"[ERROR] File key state không tồn tại: {keyStatePath}");
+                    MessageBox.Show($"File key state không tồn tại: {keyStatePath}\nVui lòng load API keys từ file.", "Lỗi cấu hình", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                _elevenLabKeyState = YamlUtility.DeserializeAuto<ElevenlabKeyState>(File.ReadAllText(keyStatePath));
+                
+                // Kiểm tra có API key nào không
+                if (_elevenLabKeyState.ApiKeys == null || _elevenLabKeyState.ApiKeys.Count == 0)
+                {
+                    Log("[WARNING] Không có API key nào trong file cấu hình");
+                    MessageBox.Show("Không có API key nào trong file cấu hình.\nVui lòng sử dụng nút 'Load API Keys' để tải API keys.", "Cảnh báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                
+                _apiKeyManager = new ApiKeyManager(
+                    _elevenLabKeyState.ApiKeys,
+                    _elevenLabConfig.KeySelectionAlgorithm,
+                    TimeSpan.FromMinutes(_elevenLabConfig.QuotaResetTimeMinutes),
+                    GetConfigPath("ElevenlabKeyState.yaml")
+                );
+                
+                // Log thông tin thành công
+                Log("[CONFIG] ===== CẤU HÌNH ELEVENLAB =====");
+                Log($"  Voice ID: {_elevenLabConfig.VoiceId}");
+                Log($"  Model: {_elevenLabConfig.ModelId}");
+                Log($"  Output: {_elevenLabConfig.OutputFormat}");
+                Log($"  Language: {_elevenLabConfig.LanguageCode}");
+                Log($"  Thuật toán chọn key: {_elevenLabConfig.KeySelectionAlgorithm}");
+                Log($"  Số lượng API keys: {_elevenLabKeyState.ApiKeys.Count}");
+                Log($"  Thời gian reset quota: {_elevenLabConfig.QuotaResetTimeMinutes} phút");
+                Log($"  Max threads: {_elevenLabConfig.MaxThreads}, Sleep time: {_elevenLabConfig.SleepTime}s");
+                Log($"  Voice settings - Stability: {_elevenLabConfig.VoiceSettings.Stability}, Similarity: {_elevenLabConfig.VoiceSettings.SimilarityBoost}");
+                Log($"[KEY_STATE] {_apiKeyManager.GetKeyStatusSummary()}");
+                Log("[SUCCESS] Đã load thành công cấu hình và API keys");
+            }
+            catch (Exception ex)
+            {
+                Log($"[ERROR] Lỗi khi load cấu hình: {ex.Message}");
+                MessageBox.Show($"Lỗi khi load cấu hình: {ex.Message}\nVui lòng kiểm tra lại file cấu hình trong thư mục Configs.", "Lỗi cấu hình", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
-            if (_elevenLabConfig.EnableProxyRotation)
+            if (_elevenLabConfig != null && _elevenLabConfig.EnableProxyRotation)
             {
                 Log("[PROXY] Proxy rotation được kích hoạt");
             }
-
-            Log("[CONFIG] ===== CẤU HÌNH ELEVENLAB =====");
-            Log($"  Voice ID: {_elevenLabConfig.VoiceId}");
-            Log($"  Model: {_elevenLabConfig.ModelId}");
-            Log($"  Output: {_elevenLabConfig.OutputFormat}");
-            Log($"  Language: {_elevenLabConfig.LanguageCode}");
-            Log($"  Thuật toán chọn key: {_elevenLabConfig.KeySelectionAlgorithm}");
-            Log($"  Số lượng API keys: {_elevenLabKeyState.ApiKeys.Count}");
-            Log($"  Thời gian reset quota: {_elevenLabConfig.QuotaResetTimeMinutes} phút");
-            Log($"  Max threads: {_elevenLabConfig.MaxThreads}, Sleep time: {_elevenLabConfig.SleepTime}s");
-            Log($"  Voice settings - Stability: {_elevenLabConfig.VoiceSettings.Stability}, Similarity: {_elevenLabConfig.VoiceSettings.SimilarityBoost}");
-            Log($"[KEY_STATE] {_apiKeyManager.GetKeyStatusSummary()}");
 
             // Kiểm tra binding BoundProxyEndpoint cho từng key, đối chiếu với proxy pool (nếu có)
             try
@@ -380,6 +433,102 @@ namespace SRT2Speech.AppWindow.ViewModels
             }
         }
 
+        private void OpenConfigFolder()
+        {
+            try
+            {
+                var configFolder = Path.Combine(Directory.GetCurrentDirectory(), "Configs");
+                
+                if (!Directory.Exists(configFolder))
+                {
+                    Directory.CreateDirectory(configFolder);
+                    Log($"[FOLDER] Đã tạo thư mục config: {configFolder}");
+                }
+                
+                // Open folder in Windows Explorer
+                System.Diagnostics.Process.Start("explorer.exe", configFolder);
+                Log($"[INFO] Đã mở thư mục config: {configFolder}");
+            }
+            catch (Exception ex)
+            {
+                Log($"[ERROR] Không thể mở thư mục config: {ex.Message}");
+                MessageBox.Show($"Không thể mở thư mục config:\n{ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ReloadConfig()
+        {
+            try
+            {
+                Log("[RELOAD] ===== BẮT ĐẦU RELOAD CẤU HÌNH =====");
+                
+                // Dispose ApiKeyManager cũ nếu có
+                if (_apiKeyManager != null)
+                {
+                    try
+                    {
+                        (_apiKeyManager as IDisposable)?.Dispose();
+                        Log("[RELOAD] Đã dispose ApiKeyManager cũ");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"[RELOAD_WARNING] Lỗi khi dispose ApiKeyManager: {ex.Message}");
+                    }
+                }
+                
+                // Reload configuration
+                InitDefaultValue();
+                
+                Log("[RELOAD] ===== HOÀN TẤT RELOAD CẤU HÌNH =====");
+                MessageBox.Show("Đã reload cấu hình thành công!\nVui lòng xem log để kiểm tra chi tiết.",
+                    "Reload Config", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Log($"[RELOAD_ERROR] Lỗi khi reload cấu hình: {ex.Message}");
+                MessageBox.Show($"Lỗi khi reload cấu hình:\n{ex.Message}",
+                    "Lỗi Reload", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RestartApp()
+        {
+            try
+            {
+                var result = MessageBox.Show(
+                    "Bạn có chắc muốn khởi động lại ứng dụng?\nTất cả tiến trình đang chạy sẽ bị dừng.",
+                    "Xác nhận Restart",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    Log("[RESTART] Đang khởi động lại ứng dụng...");
+                    
+                    // Lấy đường dẫn executable hiện tại
+                    var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                    
+                    if (!string.IsNullOrEmpty(exePath))
+                    {
+                        // Start new instance
+                        System.Diagnostics.Process.Start(exePath);
+                        
+                        // Close current instance
+                        Application.Current.Shutdown();
+                    }
+                    else
+                    {
+                        Log("[RESTART_ERROR] Không thể lấy đường dẫn ứng dụng");
+                        MessageBox.Show("Không thể khởi động lại ứng dụng.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"[RESTART_ERROR] Lỗi khi khởi động lại: {ex.Message}");
+                MessageBox.Show($"Lỗi khi khởi động lại ứng dụng:\n{ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         private void Stop()
         {
@@ -451,8 +600,164 @@ namespace SRT2Speech.AppWindow.ViewModels
                 }
 
                 Log($"[PROCESSING] Bắt đầu xử lý thư mục: {folderPath} ({srtFiles.Count} file)");
+                
+                // Check for existing checkpoint if checkpointing is enabled
+                List<SubtitleTaskItem> allItems;
+                if (_enableCheckpointing)
+                {
+                    _currentCheckpoint = _checkpointManager.GetLatestCheckpoint(folderPath);
+                    
+                    if (_currentCheckpoint != null)
+                    {
+                        var result = MessageBox.Show(
+                            $"Phát hiện checkpoint chưa hoàn thành từ {_currentCheckpoint.CreatedAt:yyyy-MM-dd HH:mm:ss}.\n" +
+                            $"Đã xử lý: {_currentCheckpoint.ProcessedCount}/{_currentCheckpoint.TotalCount}\n" +
+                            $"Lỗi: {_currentCheckpoint.ErrorCount}\n\n" +
+                            "Bạn có muốn tiếp tục từ checkpoint không?",
+                            "Checkpoint Found",
+                            MessageBoxButton.YesNoCancel,
+                            MessageBoxImage.Question);
+                        
+                        if (result == MessageBoxResult.Cancel)
+                        {
+                            return;
+                        }
+                        else if (result == MessageBoxResult.Yes)
+                        {
+                            // Resume from checkpoint
+                            allItems = await ResumeFromCheckpoint(folderPath, srtFiles);
+                            Log($"[CHECKPOINT] Resuming from checkpoint: {allItems.Count} items remaining to process");
+                        }
+                        else
+                        {
+                            // Start fresh, delete existing checkpoint
+                            _checkpointManager.DeleteCheckpoint(_currentCheckpoint.CheckpointId);
+                            _currentCheckpoint = null;
+                            allItems = await ParseAllSrtFiles(srtFiles);
+                        }
+                    }
+                    else
+                    {
+                        allItems = await ParseAllSrtFiles(srtFiles);
+                    }
+                }
+                else
+                {
+                    allItems = await ParseAllSrtFiles(srtFiles);
+                }
+                
+                if (!allItems.Any())
+                {
+                    MessageBox.Show("Không có item nào để xử lý.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // Create new checkpoint if needed
+                if (_enableCheckpointing && _currentCheckpoint == null)
+                {
+                    _currentCheckpoint = _checkpointManager.CreateCheckpoint(folderPath, allItems.Count);
+                    Log($"[CHECKPOINT] Created new checkpoint: {_currentCheckpoint.CheckpointId}");
+                }
+
+                TotalCount = allItems.Count;
+                Log($"[SUBTITLES] Tổng cộng {allItems.Count} subtitle items cần xử lý");
+                Log($"[DOWNLOAD] Chuẩn bị tải: {allItems.Count} file MP3 với {_elevenLabConfig.MaxThreads} threads đồng thời");
+                Log($"[PERFORMANCE] HttpClient Factory stats: {_httpClientFactory.GetPoolStatistics()}");
+                
+                _trackError.Clear();
+                await StartT2S(allItems, _cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Log("[CANCELLED] Người dùng đã dừng tiến trình");
+                if (_enableCheckpointing && _currentCheckpoint != null)
+                {
+                    Log($"[CHECKPOINT] Progress saved. Resume later with checkpoint ID: {_currentCheckpoint.CheckpointId}");
+                }
+            }
+            finally
+            {
+                IsProcessing = false;
+                StatusText = $"Kết thúc: {ProcessedCount}/{TotalCount} - Lỗi còn lại: {ErrorCount}";
+                
+                // Complete checkpoint if all items processed successfully
+                if (_enableCheckpointing && _currentCheckpoint != null && ProcessedCount == TotalCount)
+                {
+                    _checkpointManager.CompleteCheckpoint(_currentCheckpoint);
+                    Log($"[CHECKPOINT] Checkpoint completed: {_currentCheckpoint.CheckpointId}");
+                }
+                
+                _cts?.Dispose();
+                _cts = null;
+            }
+        }
+
+        /// <summary>
+        /// Parse tất cả SRT files thành danh sách SubtitleTaskItem với memory optimization
+        /// </summary>
+        private async Task<List<SubtitleTaskItem>> ParseAllSrtFiles(List<string> srtFiles)
+        {
+            return await Task.Run(() =>
+            {
                 var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
                 var allItems = new List<SubtitleTaskItem>();
+                var totalFiles = srtFiles.Count;
+                var processedFiles = 0;
+                
+                foreach (var srt in srtFiles)
+                {
+                    try
+                    {
+                        using var fileStream = File.OpenRead(srt);
+                        var items = parser.ParseStream(fileStream, Encoding.UTF8);
+                        var name = Path.GetFileNameWithoutExtension(srt);
+                        
+                        // Add items with memory-efficient approach
+                        foreach (var item in items)
+                        {
+                            allItems.Add(new SubtitleTaskItem
+                            {
+                                SourcePath = srt,
+                                SourceName = name,
+                                Item = item
+                            });
+                        }
+                        
+                        processedFiles++;
+                        Log($"[PARSING] Đã parse {processedFiles}/{totalFiles} files: {name} ({items.Count} items)");
+                        
+                        // Force garbage collection periodically for large file sets
+                        if (processedFiles % 10 == 0)
+                        {
+                            GC.Collect();
+                            Log($"[MEMORY] Forced GC after processing {processedFiles} files");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"[ERROR] Lỗi khi parse file {srt}: {ex.Message}");
+                    }
+                }
+                
+                Log($"[PARSING] Hoàn thành parse: {allItems.Count} items từ {totalFiles} files");
+                return allItems;
+            });
+        }
+
+        /// <summary>
+        /// Khôi phục danh sách items cần xử lý từ checkpoint
+        /// </summary>
+        private async Task<List<SubtitleTaskItem>> ResumeFromCheckpoint(string folderPath, List<string> srtFiles)
+        {
+            if (_currentCheckpoint == null)
+                return new List<SubtitleTaskItem>();
+
+            return await Task.Run(() =>
+            {
+                var parser = new SubtitlesParser.Classes.Parsers.SrtParser();
+                var allItems = new List<SubtitleTaskItem>();
+                
+                // Parse tất cả files
                 foreach (var srt in srtFiles)
                 {
                     using var fileStream = File.OpenRead(srt);
@@ -465,23 +770,31 @@ namespace SRT2Speech.AppWindow.ViewModels
                         Item = it
                     }));
                 }
-                TotalCount = allItems.Count;
-                Log($"[SUBTITLES] Đã parse tổng cộng {allItems.Count} subtitle items từ {srtFiles.Count} file SRT");
-                Log($"[DOWNLOAD] Chuẩn bị tải: {allItems.Count} file MP3 với {_elevenLabConfig.MaxThreads} threads đồng thời");
-                _trackError.Clear();
-                await StartT2S(allItems, _cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Log("[CANCELLED] Người dùng đã dừng tiến trình");
-            }
-            finally
-            {
-                IsProcessing = false;
-                StatusText = $"Kết thúc: {ProcessedCount}/{TotalCount} - Lỗi còn lại: {ErrorCount}";
-                _cts?.Dispose();
-                _cts = null;
-            }
+
+                // Lọc ra các items chưa được xử lý thành công
+                var processedItemKeys = _currentCheckpoint.ProcessedItems
+                    .Select(p => $"{p.SourceName}:{p.ItemIndex}")
+                    .ToHashSet();
+
+                var remainingItems = allItems
+                    .Where(item => !processedItemKeys.Contains($"{item.SourceName}:{item.Item.Index}"))
+                    .ToList();
+
+                // Thêm lại các items bị lỗi để retry
+                var errorItemKeys = _currentCheckpoint.ErrorItems
+                    .Select(e => $"{e.SourceName}:{e.ItemIndex}")
+                    .ToHashSet();
+
+                var errorItems = allItems
+                    .Where(item => errorItemKeys.Contains($"{item.SourceName}:{item.Item.Index}"))
+                    .ToList();
+
+                remainingItems.AddRange(errorItems);
+
+                Log($"[CHECKPOINT] Resuming with {remainingItems.Count} items (success: {_currentCheckpoint.ProcessedItems.Count}, errors: {_currentCheckpoint.ErrorItems.Count})");
+                
+                return remainingItems;
+            });
         }
 
         private async Task StartT2S(List<SubtitleTaskItem> texts, CancellationToken ct)
@@ -523,65 +836,76 @@ namespace SRT2Speech.AppWindow.ViewModels
                             return;
                         }
     
-                        Log($"[KEY_SELECTED] Thuật toán {_elevenLabConfig.KeySelectionAlgorithm} - Chọn key {apiKeyInfo.Key} (Used: {apiKeyInfo.UsedCount}, Priority: {apiKeyInfo.Priority}) cho file {f.SourceName}/{f.Item.Index}.mp3");
-    
-                        // Bắt buộc có BoundProxyEndpoint theo yêu cầu business (không fallback)
-                        if (string.IsNullOrWhiteSpace(apiKeyInfo.BoundProxyEndpoint))
-                        {
-                            Log($"[BINDING_MISSING] Key {apiKeyInfo.Key} không có BoundProxyEndpoint - bỏ qua {f.SourceName}/{f.Item.Index}.mp3");
-                            var newProcessed = Interlocked.Increment(ref _processedCount);
-                            UpdateUIProperty(() =>
-                            {
-                                ProcessedCount = newProcessed;
-                                ErrorCount = _trackError.Count;
-                                StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
-                            });
-                            return;
-                        }
-    
+                        Log($"[KEY_SELECTED] Key {apiKeyInfo.Key} (Used: {apiKeyInfo.UsedCount}, Priority: {apiKeyInfo.Priority}) -> {f.SourceName}/{f.Item.Index}.mp3");
+
                         HttpClient? clientLocal = null;
                         SRT2Speech.ProxyService.Models.ProxyInfo? poolProxy = null;
-    
+                        SRT2Speech.ProxyService.Models.ProxyInfo? chosen = null;
+                        bool useHttpClientFactory = true; // Luôn dùng HttpClientFactory cho tối ưu
+
                         try
                         {
-                            // Parse endpoint "host:port" hoặc "host:port:username:password"
-                            if (!SRT2Speech.AppWindow.Services.BoundProxyParser.TryParseBoundEndpoint(apiKeyInfo.BoundProxyEndpoint, out var parsedProxy, out var parseError))
+                            if (!UseProxy)
                             {
-                                Log($"[BINDING_INVALID] Key {apiKeyInfo.Key} endpoint không hợp lệ: {parseError}");
+                                // Checkbox "Không dùng proxy" được chọn - dùng HttpClientFactory không proxy
+                                clientLocal = _httpClientFactory.GetClientWithoutProxy(apiKeyInfo.Key);
+                                Log($"[NO_PROXY] {f.SourceName}/{f.Item.Index}.mp3 - Sử dụng direct connection");
+                            }
+                            else if (string.IsNullOrWhiteSpace(apiKeyInfo.BoundProxyEndpoint))
+                            {
+                                // Use proxy được chọn nhưng không có BoundProxyEndpoint
+                                Log($"[BINDING_MISSING] Key {apiKeyInfo.Key} không có BoundProxyEndpoint - bỏ qua {f.SourceName}/{f.Item.Index}.mp3");
+                                var newProcessed = Interlocked.Increment(ref _processedCount);
+                                UpdateUIProperty(() =>
+                                {
+                                    ProcessedCount = newProcessed;
+                                    ErrorCount = _trackError.Count;
+                                    StatusText = $"Đã xử lý {ProcessedCount}/{TotalCount}";
+                                });
                                 return;
                             }
-    
-                            // Thử đối chiếu với pool để có ProxyId cho metrics
-                            if (_proxyManager != null)
+                            else
                             {
-                                try
+                                // Parse endpoint "host:port" hoặc "host:port:username:password"
+                                if (!SRT2Speech.AppWindow.Services.BoundProxyParser.TryParseBoundEndpoint(apiKeyInfo.BoundProxyEndpoint, out var parsedProxy, out var parseError))
                                 {
-                                    var allProxies = await _proxyManager.GetAllProxiesAsync();
-                                    poolProxy = allProxies.FirstOrDefault(p =>
-                                        string.Equals(p.Host, parsedProxy!.Host, StringComparison.OrdinalIgnoreCase)
-                                        && p.Port == parsedProxy.Port);
+                                    Log($"[BINDING_INVALID] Key {apiKeyInfo.Key} endpoint không hợp lệ: {parseError}");
+                                    return;
                                 }
-                                catch { /* ignore */ }
+
+                                // Thử đối chiếu với pool để có ProxyId cho metrics
+                                if (_proxyManager != null)
+                                {
+                                    try
+                                    {
+                                        var allProxies = await _proxyManager.GetAllProxiesAsync();
+                                        poolProxy = allProxies.FirstOrDefault(p =>
+                                            string.Equals(p.Host, parsedProxy!.Host, StringComparison.OrdinalIgnoreCase)
+                                            && p.Port == parsedProxy.Port);
+                                    }
+                                    catch { /* ignore */ }
+                                }
+
+                                chosen = poolProxy ?? parsedProxy!;
+
+                                // Sử dụng HttpClientFactory để tối ưu performance
+                                clientLocal = _httpClientFactory.GetClient(apiKeyInfo.Key, chosen);
+                                var authInfo = string.IsNullOrEmpty(chosen.Username) ? "" : " (auth)";
+                                Log($"[PROXY] {f.SourceName}/{f.Item.Index}.mp3 -> {chosen.Host}:{chosen.Port}{authInfo}");
                             }
-    
-                            var chosen = poolProxy ?? parsedProxy!;
-    
-                            // Tạo HttpClient với proxy cố định
-                            var handler = new SRT2Speech.ProxyService.HttpHandlers.ProxyHttpClientHandler(chosen);
-                            clientLocal = new HttpClient(handler)
-                            {
-                                Timeout = TimeSpan.FromSeconds(30)
-                            };
-    
-                            Log($"[KEY->PROXY] {apiKeyInfo.Key} -> {chosen.Host}:{chosen.Port}{(string.IsNullOrEmpty(chosen.Username) ? "" : " (auth)")}");
-    
-                            clientLocal.DefaultRequestHeaders.Remove("xi-api-key");
-                            clientLocal.DefaultRequestHeaders.Add("xi-api-key", apiKeyInfo.Key);
     
                             var sw = System.Diagnostics.Stopwatch.StartNew();
                             var response = await RetryWithJitterAndPolly.ExecuteWithRetryAndJitterAsync(
                                 async () => await clientLocal.PostAsync(url, GetContent(f.Item.Line), ct),
-                                (res) => res.IsSuccessStatusCode
+                                (res) =>
+                                {
+
+                                    return res.IsSuccessStatusCode;
+                                },
+                                maxRetries: 3,
+                                baseDelayMs: 1000,
+                                jitterFactor: 0.5,
+                                logCallback: (msg) => Log(msg)
                             );
                             sw.Stop();
     
@@ -598,9 +922,25 @@ namespace SRT2Speech.AppWindow.ViewModels
                                     await response.Content.CopyToAsync(fileStream, ct);
                                 }
                                 _trackError.Remove(errKey, out SubtitleTaskItem? _);
-                                Log($"[DOWLOADED] Dowload thành công {outPath}");
-    
-                                if (poolProxy != null)
+                                Log($"[SUCCESS] {f.SourceName}/{f.Item.Index}.mp3 ({sw.ElapsedMilliseconds}ms)");
+
+                                // Add to checkpoint if enabled
+                                if (_enableCheckpointing && _currentCheckpoint != null)
+                                {
+                                    var processedItem = new ProcessedItem
+                                    {
+                                        SourcePath = f.SourcePath,
+                                        SourceName = f.SourceName,
+                                        ItemIndex = f.Item.Index,
+                                        OutputPath = outPath,
+                                        ApiKeyUsed = apiKeyInfo.Key,
+                                        ProxyUsed = chosen != null ? $"{chosen.Host}:{chosen.Port}" : "No Proxy"
+                                    };
+                                    _checkpointManager.AddProcessedItem(_currentCheckpoint, processedItem);
+                                }
+
+                                // Chỉ mark proxy success nếu thực sự sử dụng proxy
+                                if (UseProxy && poolProxy != null)
                                 {
                                     try { await _proxyManager!.MarkProxySuccessAsync(poolProxy.Id, sw.Elapsed); } catch { /* ignore */ }
                                 }
@@ -609,14 +949,32 @@ namespace SRT2Speech.AppWindow.ViewModels
                             {
                                 string contentErr = await response.Content.ReadAsStringAsync(ct);
                                 Log("[ERROR]: " + contentErr);
-    
-                                if (poolProxy != null)
+
+                                // Add to checkpoint if enabled
+                                if (_enableCheckpointing && _currentCheckpoint != null)
+                                {
+                                    var errorItem = new ErrorItem
+                                    {
+                                        SourcePath = f.SourcePath,
+                                        SourceName = f.SourceName,
+                                        ItemIndex = f.Item.Index,
+                                        ErrorMessage = $"{response.StatusCode}: {contentErr}",
+                                        ApiKeyUsed = apiKeyInfo.Key,
+                                        ProxyUsed = chosen != null ? $"{chosen.Host}:{chosen.Port}" : "No Proxy"
+                                    };
+                                    _checkpointManager.AddErrorItem(_currentCheckpoint, errorItem);
+                                }
+
+                                // Chỉ mark proxy failure nếu thực sự sử dụng proxy
+                                if (UseProxy && poolProxy != null)
                                 {
                                     try { await _proxyManager!.MarkProxyFailureAsync(poolProxy.Id, $"{response.StatusCode}"); } catch { /* ignore */ }
                                 }
-    
+
                                 if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
                                     contentErr.Contains("quota exceeded") ||
+                                    contentErr.Contains("quota_exceeded") ||
+                                    contentErr.Contains("exceeds") ||
                                     contentErr.Contains("rate limit") ||
                                     contentErr.Contains("invalid_api_key") ||
                                     contentErr.Contains("detected_unusual_activity"))
@@ -632,7 +990,24 @@ namespace SRT2Speech.AppWindow.ViewModels
                         }
                         finally
                         {
-                            try { clientLocal?.Dispose(); } catch { /* ignore */ }
+                            // Trả HttpClient về pool (luôn dùng HttpClientFactory)
+                            if (useHttpClientFactory && clientLocal != null)
+                            {
+                                if (!UseProxy)
+                                {
+                                    _httpClientFactory.ReturnClientWithoutProxy(clientLocal, apiKeyInfo.Key);
+                                }
+                                else if (chosen != null)
+                                {
+                                    _httpClientFactory.ReturnClient(clientLocal, apiKeyInfo.Key, chosen);
+                                }
+                            }
+                            else
+                            {
+                                // Fallback: dispose client
+                                try { clientLocal?.Dispose(); } catch { /* ignore */ }
+                            }
+                            
                             var newProcessed = Interlocked.Increment(ref _processedCount);
                             UpdateUIProperty(() =>
                             {
@@ -644,12 +1019,20 @@ namespace SRT2Speech.AppWindow.ViewModels
                     });
     
                     await Task.WhenAll(tasks);
-    
+
+                    // Save checkpoint after each batch
+                    if (_enableCheckpointing && _currentCheckpoint != null)
+                    {
+                        _currentCheckpoint.LastBatchProcessed = batchIndex.ToString();
+                        _checkpointManager.UpdateCheckpoint(_currentCheckpoint);
+                        Log($"[CHECKPOINT] Saved checkpoint after batch {batchIndex}/{chunks.Count()}");
+                    }
+
                     if (ct.IsCancellationRequested)
                     {
                         break;
                     }
-    
+
                     Log($"[BATCH] Hoàn thành batch {batchIndex}/{chunks.Count()}, nghỉ {_elevenLabConfig.SleepTime}s trước batch tiếp theo");
                     await Task.Delay(TimeSpan.FromSeconds(_elevenLabConfig.SleepTime), ct);
                 }
@@ -931,6 +1314,8 @@ namespace SRT2Speech.AppWindow.ViewModels
                 // ignore
             }
             (_apiKeyManager as IDisposable)?.Dispose();
+            _checkpointManager?.Dispose();
+            _httpClientFactory?.Dispose();
         }
 
         ~ElevenlabVoiceControlViewModel()
