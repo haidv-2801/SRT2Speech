@@ -26,6 +26,7 @@ namespace SRT2Speech.AppWindow.Views
             vm.Initialize();
 
             this.Loaded += (_, __) => InitContent();
+            this.Loaded += (_, __) => InitializeButtonStyles();
             this.Unloaded += (_, __) =>
             {
                 try
@@ -51,6 +52,25 @@ namespace SRT2Speech.AppWindow.Views
                 // Ensure minimum height is respected
                 rtb.MinHeight = 200;
             }
+        }
+
+        private void InitializeButtonStyles()
+        {
+            // Set button styles using BaseButton methods
+            var btnOpen = this.FindName("btnOpen") as BaseButton;
+            btnOpen?.SetPrimaryStyle();
+
+            var btnRestartApp = this.FindName("btnRestartApp") as BaseButton;
+            btnRestartApp?.SetSecondaryStyle();
+
+            var btnDownload = this.FindName("btnDowload") as BaseButton;
+            btnDownload?.SetSuccessStyle();
+
+            var btnDownloadError = this.FindName("btnDowloadError") as BaseButton;
+            btnDownloadError?.SetWarningStyle();
+
+            var btnStop = this.FindName("btnStop") as BaseButton;
+            btnStop?.SetDangerStyle();
         }
 
         private bool WriteLog(string message)

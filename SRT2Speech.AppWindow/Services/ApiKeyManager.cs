@@ -105,6 +105,10 @@ namespace SRT2Speech.AppWindow.Services
                 if (apiKey != null)
                 {
                     apiKey.MarkExhausted(cooldownPeriod ?? _defaultCooldownPeriod);
+                    _hasUnsavedChanges = true;
+                    
+                    // Lưu key bị exhausted vào file riêng
+                    SaveExhaustedKeyToFile(apiKey, "quota_exceeded");
                 }
             }
         }
@@ -112,6 +116,7 @@ namespace SRT2Speech.AppWindow.Services
         public void MarkKeyExhausted(string key, HttpResponseMessage response)
         {
             TimeSpan cooldownPeriod = _defaultCooldownPeriod;
+            string reason = $"{response.StatusCode}";
 
             // Try to parse X-RateLimit-Reset header
             if (response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues))
@@ -128,7 +133,18 @@ namespace SRT2Speech.AppWindow.Services
                 }
             }
 
-            MarkKeyExhausted(key, cooldownPeriod);
+            lock (_lock)
+            {
+                var apiKey = _apiKeys.FirstOrDefault(k => k.Key == key);
+                if (apiKey != null)
+                {
+                    apiKey.MarkExhausted(cooldownPeriod);
+                    _hasUnsavedChanges = true;
+                    
+                    // Lưu key bị exhausted vào file riêng với thông tin status code
+                    SaveExhaustedKeyToFile(apiKey, reason);
+                }
+            }
         }
 
         public List<ApiKeyInfo> GetAllKeys()
@@ -183,6 +199,33 @@ namespace SRT2Speech.AppWindow.Services
 
             // Fallback to first key (should not happen)
             return availableKeys.First();
+        }
+
+        /// <summary>
+        /// Lưu API key bị exhausted vào file DeadKeys.txt
+        /// </summary>
+        private void SaveExhaustedKeyToFile(ApiKeyInfo keyInfo, string reason)
+        {
+            try
+            {
+                var configFolder = Path.GetDirectoryName(_keyStateFilePath) ?? "Configs";
+                var deadKeysFile = Path.Combine(configFolder, "DeadKeys.txt");
+                
+                var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                var cooldownInfo = keyInfo.CooldownUntil.HasValue
+                    ? $" (Cooldown until: {keyInfo.CooldownUntil.Value.ToLocalTime():yyyy-MM-dd HH:mm:ss})"
+                    : "";
+                
+                var logEntry = $"[{timestamp}] Key: {keyInfo.Key} | Reason: {reason} | UsedCount: {keyInfo.UsedCount}{cooldownInfo}";
+                
+                // Append to file
+                File.AppendAllText(deadKeysFile, logEntry + Environment.NewLine);
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't throw to avoid disrupting the main flow
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Failed to save exhausted key to file: {ex.Message}");
+            }
         }
 
         private void LoadKeyState()

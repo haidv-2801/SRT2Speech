@@ -8,166 +8,7 @@
              d:DesignHeight="450"
              d:DesignWidth="800">
     <UserControl.Resources>
-        <!-- Button Styles -->
-        <Style x:Key="PrimaryButton" TargetType="Button">
-            <Setter Property="Background" Value="#007ACC"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="10,5">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#005A9E"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#004578"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#CCCCCC"/>
-                                <Setter Property="Foreground" Value="#666666"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        
-        <Style x:Key="SuccessButton" TargetType="Button">
-            <Setter Property="Background" Value="#28A745"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="10,5">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#218838"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#1E7E34"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#CCCCCC"/>
-                                <Setter Property="Foreground" Value="#666666"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        
-        <Style x:Key="WarningButton" TargetType="Button">
-            <Setter Property="Background" Value="#FFC107"/>
-            <Setter Property="Foreground" Value="#212529"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="10,5">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E0A800"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#D39E00"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#CCCCCC"/>
-                                <Setter Property="Foreground" Value="#666666"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        
-        <Style x:Key="DangerButton" TargetType="Button">
-            <Setter Property="Background" Value="#DC3545"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="10,5">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#C82333"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#BD2130"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#CCCCCC"/>
-                                <Setter Property="Foreground" Value="#666666"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        
-        <Style x:Key="SecondaryButton" TargetType="Button">
-            <Setter Property="Background" Value="#6C757D"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="10,5">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#5A6268"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#545B62"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#CCCCCC"/>
-                                <Setter Property="Foreground" Value="#666666"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <!-- Resources có thể thêm vào đây nếu cần -->
     </UserControl.Resources>
     
     <DockPanel>
@@ -199,12 +40,12 @@
                          Margin="0,0,10,0"
                          Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}"/>
                 
-                <Button Grid.Column="2"
-                        Content="Open"
-                        Width="80"
-                        Height="32"
-                        Style="{StaticResource PrimaryButton}"
-                        Command="{Binding OpenFileCommand}"/>
+                <local:BaseButton Grid.Column="2"
+                                 x:Name="btnOpen"
+                                 Text="Open"
+                                 ButtonWidth="80"
+                                 ButtonHeight="32"
+                                 Command="{Binding OpenFileCommand}"/>
             </Grid>
             
             <!-- Row 1: Use Proxy Checkbox and Action Buttons -->
@@ -226,15 +67,14 @@
                 <!-- Action Buttons on right -->
                 <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
                     <!-- Restart App Icon Button -->
-                    <Button x:Name="btnRestartApp"
-                            Content="🔄"
-                            Width="32"
-                            Height="32"
-                            FontSize="16"
-                            Margin="0,0,5,0"
-                            Style="{StaticResource SecondaryButton}"
-                            Command="{Binding RestartAppCommand}"
-                            ToolTip="Khởi động lại ứng dụng"/>
+                    <local:BaseButton x:Name="btnRestartApp"
+                                     Icon="🔄"
+                                     ButtonWidth="32"
+                                     ButtonHeight="32"
+                                     IconSize="16"
+                                     Margin="0,0,5,0"
+                                     Command="{Binding RestartAppCommand}"
+                                     Tooltip="Khởi động lại ứng dụng"/>
                     
                     <!-- Tools Menu -->
                     <Menu Background="Transparent" VerticalAlignment="Center" Margin="0,0,5,0">
@@ -269,28 +109,29 @@
                             <MenuItem Header="🔑 Load API Keys"
                                       Command="{Binding LoadApiKeysCommand}"
                                       ToolTip="Load API keys từ file text"/>
+                            <MenuItem Header="📋 Copy Unavailable Keys"
+                                      Command="{Binding CopyUnavailableKeysCommand}"
+                                      ToolTip="Copy danh sách các API key đã không còn available vào clipboard"/>
                             <MenuItem Header="🌐 Import Proxies"
                                       Command="{Binding ImportProxiesCommand}"
                                       ToolTip="Import danh sách proxy từ file"/>
                         </MenuItem>
                     </Menu>
                 
-                    <Button x:Name="btnDowload"
-                            Content="▶️ Download MP3"
-                            Width="130"
-                            Height="32"
-                            Margin="0,0,5,0"
-                            Style="{StaticResource SuccessButton}"
-                            Command="{Binding DownloadMp3Command}"
-                            ToolTip="Bắt đầu xử lý và tải xuống file MP3"/>
+                    <local:BaseButton x:Name="btnDowload"
+                                     Text="▶️ Download MP3"
+                                     ButtonWidth="130"
+                                     ButtonHeight="32"
+                                     Margin="0,0,5,0"
+                                     Command="{Binding DownloadMp3Command}"
+                                     Tooltip="Bắt đầu xử lý và tải xuống file MP3"/>
                 
-                    <Button x:Name="btnDowloadError"
-                            Content="🔄 Retry Errors"
-                            Width="110"
-                            Height="32"
-                            Style="{StaticResource WarningButton}"
-                            Command="{Binding DownloadErrorCommand}"
-                            ToolTip="Thử lại các file bị lỗi"/>
+                    <local:BaseButton x:Name="btnDowloadError"
+                                     Text="🔄 Retry Errors"
+                                     ButtonWidth="110"
+                                     ButtonHeight="32"
+                                     Command="{Binding DownloadErrorCommand}"
+                                     Tooltip="Thử lại các file bị lỗi"/>
                 </WrapPanel>
             </Grid>
         </Grid>
@@ -336,12 +177,12 @@
                         <TextBlock Text="{Binding StatusText}"/>
                     </StackPanel>
                     
-                    <Button Grid.Column="1"
-                            Content="⏹️ Stop"
-                            Width="80"
-                            Height="28"
-                            Style="{StaticResource DangerButton}"
-                            Command="{Binding StopCommand}"/>
+                    <local:BaseButton Grid.Column="1"
+                                     x:Name="btnStop"
+                                     Text="⏹️ Stop"
+                                     ButtonWidth="80"
+                                     ButtonHeight="28"
+                                     Command="{Binding StopCommand}"/>
                 </Grid>
             </Grid>
         </Border>

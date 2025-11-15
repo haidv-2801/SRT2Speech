@@ -1,0 +1,202 @@
+<UserControl x:Class="SRT2Speech.AppWindow.Views.BaseButtonExample"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SRT2Speech.AppWindow.Views"
+             mc:Ignorable="d"
+             d:DesignHeight="600"
+             d:DesignWidth="800">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+            <TextBlock Text="BaseButton Examples" 
+                      FontSize="24" 
+                      FontWeight="Bold" 
+                      Margin="0,0,0,20"/>
+            
+            <!-- Primary Buttons Section -->
+            <GroupBox Header="Primary Buttons" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton Text="Primary Button"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="With Icon"
+                                    Icon="✓"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="Disabled"
+                                    IsButtonEnabled="False"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="With Tooltip"
+                                    Tooltip="This is a helpful tooltip"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+            
+            <!-- Success Buttons Section -->
+            <GroupBox Header="Success Buttons" Margin="0,0,0,20" Padding="10">
+                <StackPanel>
+                    <WrapPanel Margin="0,0,0,10">
+                        <local:BaseButton x:Name="btnSuccess1" 
+                                        Text="Success"
+                                        ButtonWidth="140"
+                                        Margin="5"/>
+                        
+                        <local:BaseButton x:Name="btnSuccess2" 
+                                        Text="Download"
+                                        Icon="▶️"
+                                        ButtonWidth="140"
+                                        Margin="5"/>
+                        
+                        <local:BaseButton x:Name="btnSuccess3" 
+                                        Text="Save"
+                                        Icon="💾"
+                                        ButtonWidth="140"
+                                        Margin="5"/>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
+            
+            <!-- Warning Buttons Section -->
+            <GroupBox Header="Warning Buttons" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton x:Name="btnWarning1" 
+                                    Text="Warning"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton x:Name="btnWarning2" 
+                                    Text="Retry"
+                                    Icon="🔄"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+            
+            <!-- Danger Buttons Section -->
+            <GroupBox Header="Danger Buttons" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton x:Name="btnDanger1" 
+                                    Text="Delete"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton x:Name="btnDanger2" 
+                                    Text="Stop"
+                                    Icon="⏹️"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+            
+            <!-- Secondary Buttons Section -->
+            <GroupBox Header="Secondary Buttons" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton x:Name="btnSecondary1" 
+                                    Text="Cancel"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton x:Name="btnSecondary2" 
+                                    Text="Settings"
+                                    Icon="⚙️"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+            
+            <!-- Info Buttons Section -->
+            <GroupBox Header="Info Buttons" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton x:Name="btnInfo1" 
+                                    Text="Information"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton x:Name="btnInfo2" 
+                                    Text="Help"
+                                    Icon="❓"
+                                    ButtonWidth="140"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+            
+            <!-- Different Sizes Section -->
+            <GroupBox Header="Different Sizes" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton Text="Small"
+                                    ButtonWidth="80"
+                                    ButtonHeight="24"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="Medium"
+                                    ButtonWidth="120"
+                                    ButtonHeight="32"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="Large"
+                                    ButtonWidth="160"
+                                    ButtonHeight="40"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+            
+            <!-- Icon Only Buttons Section -->
+            <GroupBox Header="Icon Only Buttons" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton Icon="🔄"
+                                    ButtonWidth="40"
+                                    ButtonHeight="40"
+                                    IconSize="20"
+                                    Tooltip="Refresh"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Icon="✓"
+                                    ButtonWidth="40"
+                                    ButtonHeight="40"
+                                    IconSize="20"
+                                    Tooltip="Confirm"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Icon="✕"
+                                    ButtonWidth="40"
+                                    ButtonHeight="40"
+                                    IconSize="20"
+                                    Tooltip="Close"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+            
+            <!-- Custom Corner Radius Section -->
+            <GroupBox Header="Custom Corner Radius" Margin="0,0,0,20" Padding="10">
+                <WrapPanel>
+                    <local:BaseButton Text="No Radius"
+                                    CornerRadius="0"
+                                    ButtonWidth="120"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="Small Radius"
+                                    CornerRadius="2"
+                                    ButtonWidth="120"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="Large Radius"
+                                    CornerRadius="16"
+                                    ButtonWidth="120"
+                                    Margin="5"/>
+                    
+                    <local:BaseButton Text="Pill Shape"
+                                    CornerRadius="20"
+                                    ButtonWidth="120"
+                                    ButtonHeight="40"
+                                    Margin="5"/>
+                </WrapPanel>
+            </GroupBox>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

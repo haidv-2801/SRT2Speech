@@ -52,12 +52,14 @@ namespace SRT2Speech.AppWindow.ViewModels
         public ICommand DownloadMp3Command { get; }
         public ICommand DownloadErrorCommand { get; }
         public ICommand LoadApiKeysCommand { get; }
+        public ICommand CopyUnavailableKeysCommand { get; }
         public ICommand ImportProxiesCommand { get; }
         public ICommand StopCommand { get; }
         public ICommand OpenOutputFolderCommand { get; }
         public ICommand OpenConfigFolderCommand { get; }
         public ICommand ReloadConfigCommand { get; }
         public ICommand RestartAppCommand { get; }
+        public ICommand ViewDeadKeysCommand { get; }
 
         public string FilePath
         {
@@ -176,12 +178,14 @@ namespace SRT2Speech.AppWindow.ViewModels
             DownloadMp3Command = new AsyncRelayCommand(DownloadMp3Async, () => !IsProcessing);
             DownloadErrorCommand = new AsyncRelayCommand(DownloadErrorAsync, () => !IsProcessing);
             LoadApiKeysCommand = new RelayCommand(LoadApiKeys, () => !IsProcessing);
+            CopyUnavailableKeysCommand = new RelayCommand(CopyUnavailableKeys, () => !IsProcessing);
             ImportProxiesCommand = new AsyncRelayCommand(ImportProxiesAsync, () => !IsProcessing);
             StopCommand = new RelayCommand(Stop, () => IsProcessing);
             OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
             OpenConfigFolderCommand = new RelayCommand(OpenConfigFolder);
             ReloadConfigCommand = new RelayCommand(ReloadConfig, () => !IsProcessing);
             RestartAppCommand = new RelayCommand(RestartApp, () => !IsProcessing);
+            ViewDeadKeysCommand = new RelayCommand(ViewDeadKeys);
         }
 
         public void Initialize()
@@ -491,6 +495,59 @@ namespace SRT2Speech.AppWindow.ViewModels
             }
         }
 
+        private void ViewDeadKeys()
+        {
+            try
+            {
+                var configFolder = Path.Combine(Directory.GetCurrentDirectory(), "Configs");
+                var deadKeysFile = Path.Combine(configFolder, "DeadKeys.txt");
+                
+                if (!File.Exists(deadKeysFile))
+                {
+                    MessageBox.Show(
+                        "Chưa có file DeadKeys.txt.\nFile này sẽ được tạo tự động khi có API key bị exhausted.",
+                        "Thông tin",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    Log("[DEAD_KEYS] File DeadKeys.txt chưa tồn tại");
+                    return;
+                }
+                
+                // Đọc nội dung file
+                var content = File.ReadAllText(deadKeysFile);
+                var lines = File.ReadAllLines(deadKeysFile);
+                
+                Log($"[DEAD_KEYS] Đang mở file DeadKeys.txt ({lines.Length} dòng)");
+                
+                // Hiển thị thông tin tổng quan
+                var summary = $"File DeadKeys.txt có {lines.Length} mục\n" +
+                             $"Đường dẫn: {deadKeysFile}\n\n" +
+                             $"Bạn muốn xem nội dung file không?";
+                
+                var result = MessageBox.Show(
+                    summary,
+                    "Dead Keys Information",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+                
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Mở file bằng Notepad
+                    System.Diagnostics.Process.Start("notepad.exe", deadKeysFile);
+                    Log($"[DEAD_KEYS] Đã mở file DeadKeys.txt bằng Notepad");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"[ERROR] Không thể xem file DeadKeys.txt: {ex.Message}");
+                MessageBox.Show(
+                    $"Không thể xem file DeadKeys.txt:\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
         private void RestartApp()
         {
             try
@@ -569,6 +626,37 @@ namespace SRT2Speech.AppWindow.ViewModels
             {
                 return;
             }
+            
+            // Kiểm tra API Key Manager đã được khởi tạo chưa
+            if (_apiKeyManager == null)
+            {
+                Log("[ERROR] API Key Manager chưa được khởi tạo. Vui lòng load API keys trước.");
+                MessageBox.Show(
+                    "❌ Chưa load API keys!\n\n" +
+                    "Vui lòng thực hiện một trong các bước sau:\n" +
+                    "1. Sử dụng menu 'Tools' → 'Load API Keys' để load từ file text\n" +
+                    "2. Hoặc sử dụng 'Tools' → 'Reload Config' để load từ file cấu hình\n\n" +
+                    "Lưu ý: File cấu hình phải có ít nhất 1 API key trong ElevenlabKeyState.yaml",
+                    "⚠️ Thiếu API Keys",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+            
+            // Kiểm tra có API key khả dụng không
+            var availableKeysCount = _elevenLabKeyState?.ApiKeys?.Count ?? 0;
+            if (availableKeysCount == 0)
+            {
+                Log("[ERROR] Không có API key nào trong hệ thống.");
+                MessageBox.Show(
+                    "❌ Không có API key nào!\n\n" +
+                    "Vui lòng load API keys bằng menu 'Tools' → 'Load API Keys'",
+                    "⚠️ Thiếu API Keys",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+            
             if (string.IsNullOrEmpty(FilePath))
             {
                 MessageBox.Show("Vui lòng chọn file .srt để xác định thư mục.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -981,6 +1069,7 @@ namespace SRT2Speech.AppWindow.ViewModels
                                 {
                                     _apiKeyManager.MarkKeyExhausted(apiKeyInfo.Key, response);
                                     Log($"[KEY_EXHAUSTED] Key {apiKeyInfo.Key} đã bị khóa do vượt quota hoặc lỗi API key (Status: {response.StatusCode})");
+                                    Log($"[DEAD_KEY_SAVED] Key đã được lưu vào file DeadKeys.txt trong thư mục Configs");
                                 }
                             }
                         }
@@ -1078,6 +1167,37 @@ namespace SRT2Speech.AppWindow.ViewModels
             {
                 return;
             }
+            
+            // Kiểm tra API Key Manager đã được khởi tạo chưa
+            if (_apiKeyManager == null)
+            {
+                Log("[ERROR] API Key Manager chưa được khởi tạo. Vui lòng load API keys trước.");
+                MessageBox.Show(
+                    "❌ Chưa load API keys!\n\n" +
+                    "Vui lòng thực hiện một trong các bước sau:\n" +
+                    "1. Sử dụng menu 'Tools' → 'Load API Keys' để load từ file text\n" +
+                    "2. Hoặc sử dụng 'Tools' → 'Reload Config' để load từ file cấu hình\n\n" +
+                    "Lưu ý: File cấu hình phải có ít nhất 1 API key trong ElevenlabKeyState.yaml",
+                    "⚠️ Thiếu API Keys",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+            
+            // Kiểm tra có API key khả dụng không
+            var availableKeysCount = _elevenLabKeyState?.ApiKeys?.Count ?? 0;
+            if (availableKeysCount == 0)
+            {
+                Log("[ERROR] Không có API key nào trong hệ thống.");
+                MessageBox.Show(
+                    "❌ Không có API key nào!\n\n" +
+                    "Vui lòng load API keys bằng menu 'Tools' → 'Load API Keys'",
+                    "⚠️ Thiếu API Keys",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+            
             if (!_trackError.Any())
             {
                 MessageBox.Show("Không có bản ghi lỗi nào!!");
@@ -1162,29 +1282,209 @@ namespace SRT2Speech.AppWindow.ViewModels
                 MessageBox.Show($"Lỗi khi tải API keys: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+        private void CopyUnavailableKeys()
+        {
+            if (!ThrowKeyValid())
+            {
+                return;
+            }
+            
+            try
+            {
+                // Kiểm tra có API key state không
+                if (_elevenLabKeyState == null || _elevenLabKeyState.ApiKeys == null || _elevenLabKeyState.ApiKeys.Count == 0)
+                {
+                    Log("[COPY_KEYS] Không có API key nào trong hệ thống");
+                    MessageBox.Show(
+                        "Không có API key nào trong hệ thống!\n\n" +
+                        "Vui lòng load API keys trước khi sử dụng chức năng này.",
+                        "Thông báo",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+                
+                // Lọc các key không còn available
+                var unavailableKeys = _elevenLabKeyState.ApiKeys
+                    .Where(k => !k.IsAvailable())
+                    .ToList();
+                
+                if (unavailableKeys.Count == 0)
+                {
+                    Log("[COPY_KEYS] Tất cả API keys đều còn available");
+                    MessageBox.Show(
+                        "✅ Tuyệt vời!\n\n" +
+                        "Tất cả API keys đều còn available.\n" +
+                        "Không có key nào cần copy.",
+                        "Thông báo",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+                
+                // Tạo danh sách key để copy (mỗi key một dòng)
+                var keysList = string.Join(Environment.NewLine, unavailableKeys.Select(k => k.Key));
+                
+                // Copy vào clipboard
+                Clipboard.SetText(keysList);
+                
+                // Tạo summary report
+                var totalKeys = _elevenLabKeyState.ApiKeys.Count;
+                var availableKeys = _elevenLabKeyState.ApiKeys.Count(k => k.IsAvailable());
+                var unavailableCount = unavailableKeys.Count;
+                
+                var reportLines = new System.Text.StringBuilder();
+                reportLines.AppendLine("=== UNAVAILABLE KEYS REPORT ===");
+                reportLines.AppendLine($"Total keys: {totalKeys}");
+                reportLines.AppendLine($"Available: {availableKeys}");
+                reportLines.AppendLine($"Unavailable: {unavailableCount}");
+                reportLines.AppendLine();
+                reportLines.AppendLine("Unavailable keys details:");
+                
+                foreach (var key in unavailableKeys)
+                {
+                    var keyPrefix = key.Key.Length > 12 ? key.Key.Substring(0, 12) + "..." : key.Key;
+                    var reason = key.Available ? "In cooldown" : "Exhausted";
+                    var cooldownInfo = key.CooldownUntil.HasValue 
+                        ? $"until {key.CooldownUntil.Value.ToLocalTime():yyyy-MM-dd HH:mm:ss}"
+                        : "N/A";
+                    
+                    reportLines.AppendLine($"  • {keyPrefix} - {reason} ({cooldownInfo}) - Used: {key.UsedCount}x");
+                }
+                
+                Log($"[COPY_KEYS] Đã copy {unavailableCount} unavailable keys vào clipboard");
+                Log(reportLines.ToString());
+                
+                MessageBox.Show(
+                    $"✅ Đã copy {unavailableCount} unavailable API keys vào clipboard!\n\n" +
+                    $"📊 Thống kê:\n" +
+                    $"   • Tổng số keys: {totalKeys}\n" +
+                    $"   • Available: {availableKeys}\n" +
+                    $"   • Unavailable: {unavailableCount}\n\n" +
+                    $"Các keys đã được copy theo định dạng:\n" +
+                    $"- Mỗi key một dòng\n" +
+                    $"- Có thể paste trực tiếp vào file text\n\n" +
+                    $"Xem log để biết chi tiết về từng key.",
+                    "Copy Thành Công",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Log($"[COPY_KEYS_ERROR] Lỗi khi copy unavailable keys: {ex.Message}");
+                MessageBox.Show(
+                    $"Lỗi khi copy unavailable keys:\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
 
         private List<string> LoadApiKeysFromFile(string filePath)
         {
             try
             {
                 Log($"[KEY_LOAD] Đọc file: {Path.GetFileName(filePath)}");
+                
+                // Validate file exists
+                if (!File.Exists(filePath))
+                {
+                    throw new FileNotFoundException($"File không tồn tại: {filePath}");
+                }
+                
+                // Validate file is text format
+                var extension = Path.GetExtension(filePath).ToLowerInvariant();
+                if (extension != ".txt" && extension != ".text")
+                {
+                    Log($"[KEY_LOAD_WARNING] File có extension '{extension}' không phải .txt, nhưng vẫn tiếp tục đọc");
+                }
+                
                 var lines = File.ReadAllLines(filePath);
+                
+                // Validate file is not empty
+                if (lines.Length == 0)
+                {
+                    throw new Exception("File trống, không có dữ liệu!");
+                }
+                
                 var apiKeys = new List<string>();
+                var lineNumber = 0;
+                var skippedLines = 0;
+                
                 foreach (var line in lines)
                 {
+                    lineNumber++;
                     var trimmedLine = line.Trim();
-                    if (!string.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith("#"))
+                    
+                    // Skip empty lines and comments
+                    if (string.IsNullOrEmpty(trimmedLine))
                     {
-                        apiKeys.Add(trimmedLine);
+                        continue;
                     }
+                    
+                    if (trimmedLine.StartsWith("#") || trimmedLine.StartsWith("//"))
+                    {
+                        Log($"[KEY_LOAD] Dòng {lineNumber}: Bỏ qua comment");
+                        skippedLines++;
+                        continue;
+                    }
+                    
+                    // Validate API key format (basic validation)
+                    // ElevenLabs API keys typically have a specific format (alphanumeric, specific length)
+                    if (trimmedLine.Length < 20)
+                    {
+                        Log($"[KEY_LOAD_WARNING] Dòng {lineNumber}: API key quá ngắn (< 20 ký tự), có thể không hợp lệ: '{trimmedLine.Substring(0, Math.Min(10, trimmedLine.Length))}...'");
+                        skippedLines++;
+                        continue;
+                    }
+                    
+                    // Check for invalid characters (spaces, special chars that shouldn't be in API keys)
+                    if (trimmedLine.Contains(" ") || trimmedLine.Contains("\t"))
+                    {
+                        Log($"[KEY_LOAD_WARNING] Dòng {lineNumber}: API key chứa khoảng trắng, bỏ qua");
+                        skippedLines++;
+                        continue;
+                    }
+                    
+                    // Check for duplicates
+                    if (apiKeys.Contains(trimmedLine))
+                    {
+                        Log($"[KEY_LOAD_WARNING] Dòng {lineNumber}: API key trùng lặp, bỏ qua");
+                        skippedLines++;
+                        continue;
+                    }
+                    
+                    apiKeys.Add(trimmedLine);
+                    Log($"[KEY_LOAD] Dòng {lineNumber}: Đã thêm API key hợp lệ (prefix: {trimmedLine.Substring(0, Math.Min(8, trimmedLine.Length))}...)");
                 }
-                Log($"[KEY_LOAD] Đã đọc {lines.Length} dòng, tìm thấy {apiKeys.Count} API keys hợp lệ");
+                
+                Log($"[KEY_LOAD] === KẾT QUẢ ===");
+                Log($"  Tổng số dòng: {lines.Length}");
+                Log($"  Dòng bỏ qua: {skippedLines}");
+                Log($"  API keys hợp lệ: {apiKeys.Count}");
+                
+                // Final validation
+                if (apiKeys.Count == 0)
+                {
+                    throw new Exception($"Không tìm thấy API key hợp lệ nào trong file!\n\n" +
+                                      $"File phải có định dạng:\n" +
+                                      $"- Mỗi API key trên một dòng\n" +
+                                      $"- API key phải dài hơn 20 ký tự\n" +
+                                      $"- Không chứa khoảng trắng\n" +
+                                      $"- Có thể dùng # hoặc // để comment\n\n" +
+                                      $"Ví dụ:\n" +
+                                      $"sk_abc123def456...\n" +
+                                      $"sk_xyz789uvw012...\n" +
+                                      $"# This is a comment");
+                }
+                
                 return apiKeys;
             }
             catch (Exception ex)
             {
                 Log($"[KEY_LOAD_ERROR] Lỗi khi đọc file: {ex.Message}");
-                throw new Exception($"Không thể đọc file: {ex.Message}");
+                throw;
             }
         }
 
